@@ -6,6 +6,7 @@ import { forwardRef, useImperativeHandle } from "react"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import { safeParseString } from "~/utils"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
+import { useSourceCategories } from "~/hooks/useSourceCategories"
 import { sources } from "@shared/sources"
 
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -58,18 +59,24 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging
 
 function NewsCard({ id, setHandleRef }: NewsCardProps) {
   const { refresh } = useRefetch()
+  const { data: catData } = useSourceCategories()
+  const meta = catData?.metadata?.[id]
+  
+  // Backward compatibility fallback during loading
   const customMap = useAtomValue(customSourceMapAtom)
   const staticSource = sources[id]
   const customSource = customMap[id as string]
-  const color = staticSource?.color || customSource?.color || "blue"
-  const name = staticSource?.name || customSource?.name || (id as string)
-  const title = staticSource?.title || customSource?.title
+
+  const color = meta?.color || staticSource?.color || customSource?.color || "blue"
+  const name = meta?.name || staticSource?.name || customSource?.name || (id as string)
+  const title = meta?.title || staticSource?.title || customSource?.title
   const desc = staticSource?.desc
-  const home = staticSource?.home || customSource?.home
-  const sourceType = staticSource?.type || customSource?.type
-  const iconUrl = staticSource
-    ? `/icons/${(id as string).split("-")[0]}.png`
-    : (customSource ? `https://${customSource.subdomain}.buzzing.cc/icon.png` : undefined)
+  const home = meta?.home || staticSource?.home || customSource?.home
+  const sourceType = meta?.type || staticSource?.type || customSource?.type
+  
+  const iconUrl = meta 
+    ? (meta.isDynamic ? `https://${meta.subdomain}.buzzing.cc/icon.png` : `/icons/${(id as string).split("-")[0]}.png`)
+    : (staticSource ? `/icons/${(id as string).split("-")[0]}.png` : (customSource ? `https://${customSource.subdomain}.buzzing.cc/icon.png` : undefined))
 
   const { data, isFetching, isError } = useQuery({
     queryKey: ["source", id],
@@ -145,7 +152,7 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
               >
                 {name}
               </span>
-              {title && <span className={$("text-sm", `color-${color} bg-base op-80 bg-op-50! px-1 rounded`)}>{title}</span>}
+              {title && title.trim().toLowerCase() !== name.trim().toLowerCase() && <span className={$("text-sm", `color-${color} bg-base op-80 bg-op-50! px-1 rounded`)}>{title}</span>}
             </span>
             <span className="text-xs op-70"><UpdatedTime isError={isError} updatedTime={data?.updatedTime} /></span>
           </span>

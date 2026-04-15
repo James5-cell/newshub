@@ -17,6 +17,21 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
       const redirectID = sources?.[id]?.redirect
       if (redirectID) id = redirectID
 
+      // Check if static source is hidden by admin
+      try {
+        const { getOverrideTable } = await import("#/database/source-config")
+        const overrideTable = await getOverrideTable()
+        if (overrideTable) {
+          const hiddenIds = await overrideTable.getHidden()
+          if (hiddenIds.includes(id)) {
+            throw createError({ statusCode: 403, message: `Source is hidden` })
+          }
+        }
+      } catch (e: any) {
+        if (e.statusCode === 403) throw e
+        // ignore db error, fail-open
+      }
+
       // ── 動態源 fallback ──
       if (isValid(id)) {
         return await handleCustomSource(event, id as string, latest)

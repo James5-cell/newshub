@@ -13,6 +13,10 @@ export interface CustomSource {
   home_url: string
   created_at: number
   updated_at: number
+  is_mainstream_media: number
+  priority_weight: number
+  tags: string // JSON array string
+  badge_label: string // optional display label for card badge
 }
 
 export class CustomSourceTable {
@@ -37,7 +41,26 @@ export class CustomSourceTable {
         updated_at INTEGER
       );
     `).run()
-    logger.success(`init custom_sources table`)
+
+    // Idempotent migration
+    const infoRes = await this.db.prepare(`PRAGMA table_info(custom_sources)`).all() as any
+    const cols = (infoRes.results ?? infoRes) as { name: string }[]
+    const colNames = cols.map(c => c.name)
+
+    if (!colNames.includes('is_mainstream_media')) {
+      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN is_mainstream_media INTEGER DEFAULT 0;`).run()
+    }
+    if (!colNames.includes('priority_weight')) {
+      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN priority_weight INTEGER DEFAULT 0;`).run()
+    }
+    if (!colNames.includes('tags')) {
+      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN tags TEXT DEFAULT '[]';`).run()
+    }
+    if (!colNames.includes('badge_label')) {
+      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN badge_label TEXT DEFAULT '';`).run()
+    }
+
+    logger.success(`init/migrate custom_sources table`)
   }
 
   async getAll(): Promise<CustomSource[]> {
@@ -65,8 +88,8 @@ export class CustomSourceTable {
   async create(source: Omit<CustomSource, "created_at" | "updated_at">) {
     const now = Date.now()
     await this.db.prepare(
-      `INSERT INTO custom_sources (id, name, subdomain, type, column_id, color, is_active, interval_ms, home_url, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO custom_sources (id, name, subdomain, type, column_id, color, is_active, interval_ms, home_url, is_mainstream_media, priority_weight, tags, badge_label, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       source.id,
       source.name,
@@ -77,6 +100,10 @@ export class CustomSourceTable {
       source.is_active ?? 1,
       source.interval_ms || 600000,
       source.home_url || "",
+      source.is_mainstream_media ?? 0,
+      source.priority_weight ?? 0,
+      source.tags || "[]",
+      source.badge_label || "",
       now,
       now,
     )
@@ -95,6 +122,10 @@ export class CustomSourceTable {
     if (source.is_active !== undefined) { fields.push("is_active = ?"); values.push(source.is_active) }
     if (source.interval_ms !== undefined) { fields.push("interval_ms = ?"); values.push(source.interval_ms) }
     if (source.home_url !== undefined) { fields.push("home_url = ?"); values.push(source.home_url) }
+    if (source.is_mainstream_media !== undefined) { fields.push("is_mainstream_media = ?"); values.push(source.is_mainstream_media) }
+    if (source.priority_weight !== undefined) { fields.push("priority_weight = ?"); values.push(source.priority_weight) }
+    if (source.tags !== undefined) { fields.push("tags = ?"); values.push(source.tags) }
+    if (source.badge_label !== undefined) { fields.push("badge_label = ?"); values.push(source.badge_label) }
 
     if (fields.length === 0) return
 
@@ -105,7 +136,7 @@ export class CustomSourceTable {
     const state = await this.db.prepare(
       `UPDATE custom_sources SET ${fields.join(", ")} WHERE id = ?`,
     ).run(...values)
-    if (!state.success) throw new Error(`update custom source ${id} failed`)
+    if (state && state.success === false) throw new Error(`update custom source ${id} failed`)
     logger.success(`updated custom source: ${id}`)
   }
 
@@ -113,7 +144,7 @@ export class CustomSourceTable {
     const state = await this.db.prepare(
       `DELETE FROM custom_sources WHERE id = ?`,
     ).run(id)
-    if (!state.success) throw new Error(`delete custom source ${id} failed`)
+    if (state && state.success === false) throw new Error(`delete custom source ${id} failed`)
     logger.success(`deleted custom source: ${id}`)
   }
 }
@@ -126,5 +157,109 @@ export async function getCustomSourceTable() {
     return table
   } catch (e) {
     logger.error("failed to init custom_sources table", e)
+  }
+}
+
+export interface SourceOverride {
+  source_id: string
+  is_hidden: number
+  created_at: number
+  updated_at: number
+  is_mainstream_media: number
+  priority_weight: number
+  tags?: string // JSON array string
+  badge_label?: string
+}
+
+export class SourceOverrideTable {
+  private db
+  constructor(db: Database) {
+    this.db = db
+  }
+
+  async init() {
+    await this.db.prepare(`
+      CREATE TABLE IF NOT EXISTS source_overrides (
+        source_id TEXT PRIMARY KEY,
+        is_hidden INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER,
+        updated_at INTEGER
+      );
+    `).run()
+
+    // Idempotent migration
+    const infoRes = await this.db.prepare(`PRAGMA table_info(source_overrides)`).all() as any
+    const cols = (infoRes.results ?? infoRes) as { name: string }[]
+    const colNames = cols.map(c => c.name)
+
+    if (!colNames.includes('is_mainstream_media')) {
+      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN is_mainstream_media INTEGER DEFAULT -1;`).run()
+    }
+    if (!colNames.includes('priority_weight')) {
+      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN priority_weight INTEGER DEFAULT 0;`).run()
+    }
+    if (!colNames.includes('tags')) {
+      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN tags TEXT DEFAULT NULL;`).run()
+    }
+    if (!colNames.includes('badge_label')) {
+      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN badge_label TEXT DEFAULT NULL;`).run()
+    }
+
+    logger.success(`init/migrate source_overrides table`)
+  }
+
+  async getAll(): Promise<SourceOverride[]> {
+    const res = await this.db.prepare(
+      `SELECT * FROM source_overrides ORDER BY updated_at DESC`,
+    ).all() as any
+    const rows = (res.results ?? res) as SourceOverride[]
+    return rows ?? []
+  }
+
+  async getHidden(): Promise<string[]> {
+    const res = await this.db.prepare(
+      `SELECT source_id FROM source_overrides WHERE is_hidden = 1`,
+    ).all() as any
+    const rows = (res.results ?? res) as { source_id: string }[]
+    return rows ? rows.map(r => r.source_id) : []
+  }
+
+  async upsert(source_id: string, is_hidden: number, traits?: { is_mainstream_media?: number, priority_weight?: number, tags?: string | null, badge_label?: string | null }) {
+    const now = Date.now()
+    
+    if (traits) {
+      await this.db.prepare(`
+        INSERT INTO source_overrides (source_id, is_hidden, is_mainstream_media, priority_weight, tags, badge_label, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source_id) DO UPDATE SET
+          is_hidden = excluded.is_hidden,
+          is_mainstream_media = excluded.is_mainstream_media,
+          priority_weight = excluded.priority_weight,
+          tags = excluded.tags,
+          badge_label = excluded.badge_label,
+          updated_at = excluded.updated_at
+      `).run(source_id, is_hidden, traits.is_mainstream_media ?? -1, traits.priority_weight ?? 0, traits.tags ?? null, traits.badge_label ?? null, now, now)
+    } else {
+      await this.db.prepare(`
+        INSERT INTO source_overrides (source_id, is_hidden, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(source_id) DO UPDATE SET
+          is_hidden = excluded.is_hidden,
+          updated_at = excluded.updated_at
+      `).run(source_id, is_hidden, now, now)
+    }
+
+    logger.success(`upserted source override: ${source_id} (hidden: ${is_hidden})`)
+  }
+}
+
+export async function getOverrideTable() {
+  try {
+    const db = useDatabase()
+    const table = new SourceOverrideTable(db)
+    if (process.env.INIT_TABLE !== "false") await table.init()
+    return table
+  } catch (e) {
+    logger.error("failed to init source_overrides table", e)
   }
 }

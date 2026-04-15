@@ -12,6 +12,6 @@ export default defineEventHandler(async (event) => {
     return { isAdmin: false }
   }
   return {
-    isAdmin: event.context.user.id === adminId,
+    isAdmin: String(event.context.user.id) === String(adminId),
   }
 })

@@ -16,6 +16,8 @@ export interface CustomSourceInfo {
   title: string
 }
 
+const EMPTY_ARRAY: CustomSourceInfo[] = []
+
 /**
  * 從 /api/custom-sources 拉取所有 active 動態源
  * - staleTime 60s：避免頻繁呼叫，但仍能在 Admin 修改後較快刷新
@@ -33,7 +35,7 @@ export function useCustomSources() {
   })
 
   return {
-    customSources: data ?? [],
+    customSources: data ?? EMPTY_ARRAY,
     isLoading,
     refetch,
   }
@@ -49,13 +51,16 @@ export function useCustomSourceIds(columnOrType: string) {
   return useMemo(() => {
     return customSources
       .filter((s) => {
-        // "hottest" / "realtime" tab → 匹配 type
-        if (columnOrType === "hottest" || columnOrType === "realtime") {
-          return s.type === columnOrType
-        }
         // "focus" tab → 不自動 append（需使用者手動收藏）
         if (columnOrType === "focus") {
           return false
+        }
+        // "hottest" 是首頁預設 tab，除了強制設為 realtime 的以外，我們讓所有自訂源都能在最熱曝露
+        if (columnOrType === "hottest") {
+          return s.type !== "realtime"
+        }
+        if (columnOrType === "realtime") {
+          return s.type === "realtime"
         }
         // 其他 column (china, world, tech, finance) → 匹配 column
         return s.column === columnOrType
@@ -76,13 +81,11 @@ export function useCustomSourceMap() {
   const [map, setMap] = useAtom(customSourceMapAtom)
 
   useEffect(() => {
-    if (customSources.length > 0) {
-      const newMap: Record<string, CustomSourceInfo> = {}
-      customSources.forEach((s) => {
-        newMap[s.id] = s
-      })
-      setMap(newMap)
-    }
+    const newMap: Record<string, CustomSourceInfo> = {}
+    customSources.forEach((s) => {
+      newMap[s.id] = s
+    })
+    setMap(newMap)
   }, [customSources, setMap])
 
   return map

@@ -1,15 +1,15 @@
 {
-  "name": "newsnow",
+  "name": "newshub",
   "type": "module",
-  "version": "0.0.39",
+  "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "author": {
-    "url": "https://github.com/ourongxing/",
-    "email": "orongxing@gmail.com",
-    "name": "ourongxing"
+    "url": "https://postsoma-2050.com",
+    "email": "",
+    "name": "postsoma-2050"
   },
-  "homepage": "https://github.com/ourongxing/newsnow",
+  "homepage": "https://postsoma-2050.com",
   "scripts": {
     "dev": "npm run presource && vite dev",
     "build": "npm run presource && vite build",

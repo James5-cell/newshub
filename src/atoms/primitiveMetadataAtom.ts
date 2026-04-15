@@ -44,7 +44,12 @@ export function preprocessMetadata(target: PrimitiveMetadata) {
           .filter(([id]) => initialMetadata[id])
           .map(([id, s]) => {
             if (id === "focus") return [id, s.filter(k => sources[k]).map(k => sources[k].redirect ?? k)]
-            const oldS = s.filter(k => initialMetadata[id].includes(k)).map(k => sources[k].redirect ?? k)
+            // 保留使用者排序：靜態源做 redirect 映射，動態源原樣保留
+            const oldS = s.map(k => {
+              if (sources[k]) return sources[k].redirect ?? k  // 靜態源：套用 redirect
+              if (initialMetadata[id]?.includes(k)) return k   // 在初始列表中的
+              return k                                          // 動態源：原樣保留
+            })
             const newS = initialMetadata[id].filter(k => !oldS.includes(k))
             return [id, [...oldS, ...newS]]
           }),

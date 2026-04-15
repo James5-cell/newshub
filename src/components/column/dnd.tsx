@@ -17,6 +17,8 @@ import { CardWrapper } from "./card"
 import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
 import { sources } from "@shared/sources"
+import { useSourceOverrides } from "~/hooks/useSourceOverrides"
+import { useSourceCategories } from "~/hooks/useSourceCategories"
 
 const AnimationDuration = 200
 const WIDTH = 350
@@ -24,18 +26,63 @@ export function Dnd() {
   const [items, setItems] = useAtom(currentSourcesAtom)
   const currentColumnID = useAtomValue(currentColumnIDAtom)
   const customSourceIds = useCustomSourceIds(currentColumnID)
+  const { hiddenSourceIds } = useSourceOverrides()
   // 初始化動態源 metadata map（供 card.tsx 渲染用）
   useCustomSourceMap()
 
-  // 合併靜態源 + 動態源（動態源 append 到最後，去重）
+  const { data: catData, isError: isCatError } = useSourceCategories()
+
+  // 當後端資料載入後，將排序初始化到 atom（僅首次，不覆蓋使用者自訂排序）
+  const hasSeeded = useRef<Record<string, boolean>>({})
+  useEffect(() => {
+    if (catData && !isCatError && currentColumnID !== "focus") {
+      const catList = catData.categories[currentColumnID as keyof typeof catData.categories]
+      if (catList && !hasSeeded.current[currentColumnID]) {
+        // 只在 atom 中沒有跟後端重疊的項目時初始化（首次載入或新欄位）
+        const catSet = new Set(catList.map(String))
+        const hasUserOrder = items.length > 0 && items.some(id => catSet.has(String(id)))
+        if (!hasUserOrder) {
+          setItems(catList as SourceID[])
+        }
+        hasSeeded.current[currentColumnID] = true
+      }
+    }
+  }, [catData, isCatError, currentColumnID])
+
+  // 合併靜態源 + 動態源（動態源 append 到最後，去重），並從中濾掉被隱藏的靜態來源
+  // 使用 items (atom/localStorage) 作為排序基底，catData 作為有效來源集合
   const allItems = useMemo(() => {
-    const staticSet = new Set(items as string[])
-    const dynamicIds = customSourceIds.filter(id => !staticSet.has(id))
-    return [...items, ...dynamicIds] as SourceID[]
-  }, [items, customSourceIds])
+    if (catData && !isCatError) {
+      if (currentColumnID === "focus") {
+        return items as SourceID[]
+      } else {
+        const catList = catData.categories[currentColumnID as keyof typeof catData.categories] as SourceID[] | undefined
+        if (!catList) return []
+        const catSet = new Set(catList.map(String))
+        // 取 atom 中已存在且仍有效的項目，保留使用者排序
+        const userOrdered = items.filter(id => catSet.has(String(id)))
+        // 加入新出現的來源（後端有、使用者本地沒有的）
+        const userSet = new Set(userOrdered.map(String))
+        const newItems = catList.filter(id => !userSet.has(String(id)))
+        return [...userOrdered, ...newItems] as SourceID[]
+      }
+    } else {
+      // Fallback when backend is unavailable
+      if (currentColumnID === "more" || currentColumnID === "news") {
+        const allStatic = Object.keys(sources)
+        const dynIds = customSourceIds
+        const hiddenSet = new Set(hiddenSourceIds)
+        return [...allStatic, ...dynIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+      }
+      const staticSet = new Set(items as string[])
+      const dynamicIds = customSourceIds.filter(id => !staticSet.has(id))
+      const hiddenSet = new Set(hiddenSourceIds)
+      return [...items, ...dynamicIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+    }
+  }, [catData, isCatError, currentColumnID, items, customSourceIds, hiddenSourceIds])
 
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
-  useEntireQuery(items)
+  useEntireQuery(allItems)
   const { width } = useWindowSize()
   const minWidth = useMemo(() => {
     // double padding = 32

@@ -16,7 +16,7 @@ function assertAdmin(event: any) {
   if (!adminId) {
     throw createError({ statusCode: 503, message: "ADMIN_GITHUB_ID not configured" })
   }
-  if (!event.context.user?.id || event.context.user.id !== adminId) {
+  if (!event.context.user?.id || String(event.context.user.id) !== String(adminId)) {
     throw createError({ statusCode: 403, message: "Forbidden: Admin access only" })
   }
 }
@@ -32,69 +32,87 @@ export default defineEventHandler(async (event) => {
     return await table.getAll()
   }
 
-  // ── POST: 新增自訂源 ──
-  if (method === "POST") {
+
+  // ── POST / PUT: 新增或更新自訂源 ──
+  if (method === "POST" || method === "PUT") {
     assertAdmin(event)
     const body = await readBody(event)
-    if (!body?.name || !body?.subdomain) {
-      throw createError({ statusCode: 400, message: "name and subdomain are required" })
+    const id = body.id || (body.subdomain ? `buzzing-${body.subdomain}` : "")
+    
+    if (method === "POST" && (!id || !body.name || !body.subdomain)) {
+      throw createError({ statusCode: 400, message: "id, name, and subdomain are required" })
+    }
+    if (method === "PUT" && !id) {
+      throw createError({ statusCode: 400, message: "id is required for update" })
     }
 
     const table = await getCustomSourceTable()
     if (!table) throw createError({ statusCode: 500, message: "Database unavailable" })
 
-    const id = `buzzing-${body.subdomain}`
+    if (method === "POST") {
+      if (await table.getById(id)) throw createError({ statusCode: 400, message: "Source ID already exists" })
+      
+      const name = body.name
+      const subdomain = body.subdomain
+      const type = body.type || ""
+      const column_id = body.column_id || "world"
+      const color = body.color || "blue"
+      const home_url = body.home_url || `https://${body.subdomain}.buzzing.cc/`
+      const is_active = body.is_active !== undefined ? Number(body.is_active) : 1
+      const interval_ms = Number(body.interval_ms) || 600000
 
-    // 檢查是否已存在
-    const existing = await table.getById(id)
-    if (existing) {
-      throw createError({ statusCode: 409, message: `Source "${id}" already exists` })
+      const is_mainstream_media = body.is_mainstream_media !== undefined ? Number(body.is_mainstream_media) : 0
+      const priority_weight = body.priority_weight !== undefined ? Number(body.priority_weight) : 0
+      const badge_label = (body.badge_label ?? "").toString().trim()
+      let tags = "[]"
+      try {
+        if (body.tags) {
+          tags = JSON.stringify(typeof body.tags === "string" ? JSON.parse(body.tags) : body.tags)
+        }
+      } catch { tags = "[]" }
+
+      await table.create({
+        id, name, subdomain, type, column_id, color, home_url, is_active, interval_ms,
+        is_mainstream_media, priority_weight, tags, badge_label
+      })
+      return { success: true, id }
     }
 
-    await table.create({
-      id,
-      name: body.name,
-      subdomain: body.subdomain,
-      type: body.type || "",
-      column_id: body.column_id || "world",
-      color: body.color || "blue",
-      is_active: body.is_active ?? 1,
-      interval_ms: body.interval_ms || 600000,
-      home_url: body.home_url || `https://${body.subdomain}.buzzing.cc/`,
-    })
+    if (method === "PUT") {
+      if (!await table.getById(id)) throw createError({ statusCode: 404, message: "Source not found" })
+      
+      const updates: any = {}
+      if (body.name !== undefined) updates.name = body.name
+      if (body.subdomain !== undefined) updates.subdomain = body.subdomain
+      if (body.type !== undefined) updates.type = body.type
+      if (body.column_id !== undefined) updates.column_id = body.column_id
+      if (body.color !== undefined) updates.color = body.color
+      if (body.home_url !== undefined) updates.home_url = body.home_url
+      if (body.is_active !== undefined) updates.is_active = Number(body.is_active)
+      if (body.interval_ms !== undefined) updates.interval_ms = Number(body.interval_ms)
+      
+      if (body.is_mainstream_media !== undefined) updates.is_mainstream_media = Number(body.is_mainstream_media)
+      if (body.priority_weight !== undefined) updates.priority_weight = Number(body.priority_weight)
+      if (body.badge_label !== undefined) updates.badge_label = body.badge_label.toString().trim()
+      if (body.tags !== undefined) {
+        try {
+          updates.tags = JSON.stringify(typeof body.tags === "string" ? JSON.parse(body.tags) : body.tags)
+        } catch { updates.tags = "[]" }
+      }
 
-    return { success: true, id }
-  }
-
-  // ── PUT: 更新自訂源 ──
-  if (method === "PUT") {
-    assertAdmin(event)
-    const body = await readBody(event)
-    if (!body?.id) {
-      throw createError({ statusCode: 400, message: "id is required" })
+      await table.update(id, updates)
+      return { success: true, id }
     }
-
-    const table = await getCustomSourceTable()
-    if (!table) throw createError({ statusCode: 500, message: "Database unavailable" })
-
-    const existing = await table.getById(body.id)
-    if (!existing) {
-      throw createError({ statusCode: 404, message: `Source "${body.id}" not found` })
-    }
-
-    const { id, ...updates } = body
-    await table.update(id, updates)
-
-    return { success: true, id }
   }
 
   // ── DELETE: 刪除自訂源 ──
   if (method === "DELETE") {
     assertAdmin(event)
-    const query = getQuery(event)
-    const id = query.id as string
+    const body = await readBody<{ id: string }>(event).catch(() => null)
+    const id = body?.id || getQuery(event).id as string
+
     if (!id) {
-      throw createError({ statusCode: 400, message: "id query parameter is required" })
+      throw createError({ statusCode: 400, message: "id is required" })
     }
 
     const table = await getCustomSourceTable()

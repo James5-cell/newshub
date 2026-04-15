@@ -1,7 +1,6 @@
 import { motion } from "framer-motion"
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { Homepage } from "@shared/consts"
 
 // function ThemeToggle() {
 //   const { isDark, toggleDark } = useDark()
@@ -69,27 +68,9 @@ export function Menu() {
                   ))}
               <AdminMenuEntry loggedIn={loggedIn} />
               {/* <ThemeToggle /> */}
-              <li onClick={() => window.open(Homepage)} className="cursor-pointer [&_*]:cursor-pointer transition-all">
-                <span className="i-ph:github-logo-duotone inline-block" />
-                <span>Star on Github </span>
-              </li>
-              <li className="flex gap-2 items-center">
-                <a
-                  href="https://github.com/ourongxing/newsnow"
-                >
-                  <img
-                    alt="GitHub stars badge"
-                    src="https://img.shields.io/github/stars/ourongxing/newsnow?logo=github&style=flat&labelColor=%235e3c40&color=%23614447"
-                  />
-                </a>
-                <a
-                  href="https://github.com/ourongxing/newsnow/fork"
-                >
-                  <img
-                    alt="GitHub forks badge"
-                    src="https://img.shields.io/github/forks/ourongxing/newsnow?logo=github&style=flat&labelColor=%235e3c40&color=%23614447"
-                  />
-                </a>
+              <li onClick={() => window.open("https://postsoma-2050.com")} className="cursor-pointer [&_*]:cursor-pointer transition-all">
+                <span className="i-ph:archive-duotone inline-block" />
+                <span>postsoma-2050 Archive</span>
               </li>
             </ol>
           </motion.div>
