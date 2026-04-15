@@ -27,7 +27,7 @@ export default defineConfig({
     }),
     unimport.vite({
       dirs: ["src/hooks", "shared", "src/utils", "src/atoms"],
-      exclude: [/shared\/dir\.ts/],
+      exclude: [/shared\/dir\.ts/, /node_modules/],
       presets: ["react", {
         from: "jotai",
         imports: ["atom", "useAtom", "useAtomValue", "useSetAtom"],
