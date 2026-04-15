@@ -7372,3 +7372,66 @@ Error: Error transforming route file /Users/jameswei/Desktop/newsnow-main/src/ro
 3:29:42 AM [vite] (client) hmr update /src/routes/__root.tsx, /src/routes/index.tsx, /src/components/common/overlay-scrollbar/index.tsx, /src/components/header/index.tsx, /src/components/column/index.tsx, /src/components/navbar.tsx, /src/components/common/search-bar/index.tsx, /src/components/column/card.tsx, /src/components/column/dnd.tsx
 3:30:18 AM [vite] (client) hmr update /src/components/column/dnd.tsx
 ✔ init/migrate custom_sources table                                3:30:18 AM
+3:40:03 AM [vite] (client) hmr update /src/components/common/search-bar/index.tsx
+3:40:03 AM [vite] (client) hmr update /src/routes/admin.tsx, /src/components/common/search-bar/index.tsx, /src/routes/c.$column.tsx, /src/components/column/index.tsx, /src/routes/__root.tsx, /src/routes/index.tsx, /src/components/common/overlay-scrollbar/index.tsx, /src/components/header/index.tsx, /src/components/navbar.tsx, /src/components/column/card.tsx, /src/components/column/dnd.tsx
+✔ init/migrate custom_sources table                                3:40:04 AM
+✔ init/migrate source_overrides table                              3:40:04 AM
+✔ init/migrate custom_sources table                                3:40:04 AM
+✔ init/migrate source_overrides table                              3:40:04 AM
+✔ init cache table                                                 3:40:04 AM
+✔ init/migrate custom_sources table                                3:40:04 AM
+✔ init/migrate source_overrides table                              3:40:04 AM
+✔ get entire (...) cache                                           3:40:04 AM
+[nitro] ✔ Nitro Server built in 789ms
+[nitro] ✔ Nitro Server built in 803ms
+[nitro] ✔ Nitro Server built in 797ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  suppress all logs with { quiet: true }
+3:40:48 AM [vite] (client) hmr update /src/components/common/search-bar/index.tsx
+3:40:54 AM [vite] (client) hmr update /src/routes/admin.tsx, /src/components/common/search-bar/index.tsx, /src/routes/c.$column.tsx, /src/components/column/index.tsx, /src/routes/__root.tsx, /src/routes/index.tsx, /src/components/common/overlay-scrollbar/index.tsx, /src/components/header/index.tsx, /src/components/navbar.tsx, /src/components/column/card.tsx, /src/components/column/dnd.tsx
+[nitro] ✔ Nitro Server built in 708ms
+[nitro] ✔ Nitro Server built in 720ms
+[nitro] ✔ Nitro Server built in 732ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+4:24:27 AM [vite] (client) hmr update /src/components/common/search-bar/index.tsx
+4:24:27 AM [vite] (client) hmr update /src/routes/admin.tsx, /src/components/common/search-bar/index.tsx, /src/routes/c.$column.tsx, /src/components/column/index.tsx, /src/routes/__root.tsx, /src/routes/index.tsx, /src/components/common/overlay-scrollbar/index.tsx, /src/components/header/index.tsx, /src/components/navbar.tsx, /src/components/column/card.tsx, /src/components/column/dnd.tsx
+[nitro] ✔ Nitro Server built in 2025ms
+[nitro] ✔ Nitro Server built in 1878ms
+[nitro] ✔ Nitro Server built in 1888ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+4:24:52 AM [vite] (client) hmr update /src/components/common/search-bar/index.tsx
+4:24:52 AM [vite] (client) hmr update /src/routes/admin.tsx, /src/components/common/search-bar/index.tsx, /src/routes/c.$column.tsx, /src/components/column/index.tsx, /src/routes/__root.tsx, /src/routes/index.tsx, /src/components/common/overlay-scrollbar/index.tsx, /src/components/header/index.tsx, /src/components/navbar.tsx, /src/components/column/card.tsx, /src/components/column/dnd.tsx
+[nitro] ✔ Nitro Server built in 686ms
+[nitro] ✔ Nitro Server built in 692ms
+[nitro] ✔ Nitro Server built in 692ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+4:25:38 AM [vite] (client) hmr update /src/components/common/search-bar/index.tsx
+4:25:38 AM [vite] (client) hmr update /src/routes/admin.tsx, /src/components/common/search-bar/index.tsx, /src/routes/c.$column.tsx, /src/components/column/index.tsx, /src/routes/__root.tsx, /src/routes/index.tsx, /src/components/common/overlay-scrollbar/index.tsx, /src/components/header/index.tsx, /src/components/navbar.tsx, /src/components/column/card.tsx, /src/components/column/dnd.tsx
+[nitro] ✔ Nitro Server built in 581ms
+[nitro] ✔ Nitro Server built in 587ms
+[nitro] ✔ Nitro Server built in 587ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+4:25:53 AM [vite] (client) hmr update /src/components/common/search-bar/index.tsx
+4:26:09 AM [vite] vite.config.ts changed, restarting server...
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+ℹ The server endpoints are accessible under the "/api" path.                 
+4:26:09 AM [vite] server restarted.
+[nitro] ✔ Nitro Server built in 772ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: 🛡️ auth for agents: https://vestauth.com
+[nitro] ✔ Nitro Server built in 746ms
+[nitro] ✔ Nitro Server built in 749ms
+[nitro] ✔ Nitro Server built in 749ms
+[nitro] ✔ Nitro Server built in 760ms
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env.server -- tip: ⚙️  suppress all logs with { quiet: true }
