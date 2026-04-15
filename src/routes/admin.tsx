@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { motion, AnimatePresence } from "framer-motion"
@@ -80,9 +80,12 @@ function AdminPage() {
     },
   })
 
+  const [updatingDynamicId, setUpdatingDynamicId] = useState<string | null>(null)
+
   // 更新（含 toggle active）
   const updateMutation = useMutation({
     mutationFn: async (body: Record<string, any>) => {
+      setUpdatingDynamicId(body.id)
       return await myFetch("/admin/sources", {
         method: "PUT",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -102,8 +105,10 @@ function AdminPage() {
         if (!old) return []
         return old.map(s => s.id === variables.id ? { ...s, ...variables } : s)
       })
-      refetch()
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+    },
+    onSettled: () => {
+      setUpdatingDynamicId(null)
     },
   })
 
@@ -231,7 +236,7 @@ function AdminPage() {
                       deleteMutation.mutate(source.id)
                     }
                   }}
-                  isUpdating={updateMutation.isPending}
+                  isUpdating={updatingDynamicId === source.id}
                 />
               ))}
             </div>
@@ -279,12 +284,15 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
     })
   }, [overrides])
 
+  const [savingId, setSavingId] = useState<string | null>(null)
+
   const toggleMutation = useMutation({
-    mutationFn: async ({ id, is_hidden, is_mainstream_media, priority_weight, tags }: any) => {
+    mutationFn: async ({ id, is_hidden, is_mainstream_media, priority_weight, tags, badge_label }: any) => {
+      setSavingId(id)
       return await myFetch("/admin/source-overrides", {
         method: "PUT",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ id, is_hidden, is_mainstream_media, priority_weight, tags }),
+        body: JSON.stringify({ id, is_hidden, is_mainstream_media, priority_weight, tags, badge_label }),
       })
     },
     onSuccess: (_, variables) => {
@@ -301,21 +309,21 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
         const existing = old.findIndex(o => o.source_id === variables.id)
         if (existing > -1) {
           const newArr = [...old]
-          newArr[existing] = payload
+          newArr[existing] = { ...old[existing], ...payload }
           return newArr
         }
         return [...old, payload]
       })
-      // 同步更新前端 hook 的快取
       queryClient.setQueryData(["source-overrides"], (old: string[] | undefined) => {
         const hiddenSet = new Set(old || [])
         if (variables.is_hidden === 1) hiddenSet.add(variables.id)
         else hiddenSet.delete(variables.id)
         return Array.from(hiddenSet)
       })
-      queryClient.invalidateQueries({ queryKey: ["source-overrides-admin"] })
-      queryClient.invalidateQueries({ queryKey: ["source-overrides"] })
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+    },
+    onSettled: () => {
+      setSavingId(null)
     },
   })
 
@@ -325,7 +333,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
         <span className="i-ph:cube-duotone" />
         靜態來源管理
       </h2>
-      <p className="text-sm op-50 mb-6">可在此隱藏系統預設的靜態新聞來源 (shared/sources.json)。</p>
+      <p className="text-sm op-50 mb-6">可在此隱藏系統預設的靜態新聞來源。「權重」為站方預設排序（數字越大越前面），訪客可在首頁自行拖曳覆蓋。</p>
 
       {isLoading ? (
         <div className="flex justify-center py-8">
@@ -351,7 +359,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                   is_hidden: source.is_active ? 0 : 1,
                   ...traits
                 })}
-                isUpdating={toggleMutation.isPending}
+                isSaving={savingId === source.id}
               />
             ))}
           </div>
@@ -361,7 +369,12 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
   )
 }
 
-function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) {
+function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
+  source: any
+  onToggle: () => void
+  onUpdateTraits: (traits: any) => Promise<any>
+  isSaving: boolean
+}) {
   const columnLabels: Record<string, string> = {
     world: "國際",
     china: "國內",
@@ -376,28 +389,43 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
   }
 
   const override = source.override || {}
-  const [isMainstream, setIsMainstream] = useState(override.is_mainstream_media ?? -1)
-  const [weight, setWeight] = useState(override.priority_weight ?? 0)
+
+  // All editable state as strings to avoid mixed types
+  const [isMainstream, setIsMainstream] = useState(String(override.is_mainstream_media ?? -1))
+  const [weight, setWeight] = useState(String(override.priority_weight ?? 0))
   const [badgeLabel, setBadgeLabel] = useState(override.badge_label ?? "")
   const [tags, setTags] = useState(() => {
     try { return JSON.parse(override.tags || "[]").join(", ") }
     catch { return "" }
   })
 
-  // UX Feedback and dedup states
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
 
   const inFlightRef = useRef(false)
   const pendingPayloadRef = useRef<any>(null)
   const debounceRef = useRef<any>(null)
+  const lastSyncedRef = useRef<string>("")
 
+  // Only sync from override when it genuinely changed server-side
+  // (avoids clobbering local edits caused by optimistic setQueryData)
   useEffect(() => {
-    setIsMainstream(override.is_mainstream_media ?? -1)
-    setWeight(override.priority_weight ?? 0)
+    const fingerprint = JSON.stringify({
+      m: override.is_mainstream_media,
+      w: override.priority_weight,
+      b: override.badge_label,
+      t: override.tags,
+    })
+    if (fingerprint === lastSyncedRef.current) return
+    lastSyncedRef.current = fingerprint
+
+    if (saveStatus === "saving") return
+
+    setIsMainstream(String(override.is_mainstream_media ?? -1))
+    setWeight(String(override.priority_weight ?? 0))
     setBadgeLabel(override.badge_label ?? "")
     try { setTags(JSON.parse(override.tags || "[]").join(", ")) } catch { setTags("") }
-  }, [override])
+  }, [override, saveStatus])
 
   const processQueue = async () => {
     if (inFlightRef.current || !pendingPayloadRef.current) return
@@ -420,12 +448,11 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
     } finally {
       inFlightRef.current = false
       if (pendingPayloadRef.current) {
-        processQueue() // Pick up the latest overwritten payload
+        processQueue()
       }
     }
   }
 
-  // Normalize tags: split, trim, filter, case-insensitive dedup
   const normalizeTags = (raw: string): string[] => {
     const seen = new Set<string>()
     return raw.split(',').map(t => t.trim()).filter(Boolean).filter(t => {
@@ -437,9 +464,10 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
   }
 
   const handleBlur = () => {
+    const parsedWeight = parseInt(weight, 10)
     pendingPayloadRef.current = {
       is_mainstream_media: Number(isMainstream),
-      priority_weight: Number(weight) || 0,
+      priority_weight: Number.isFinite(parsedWeight) ? parsedWeight : 0,
       tags: JSON.stringify(normalizeTags(tags)),
       badge_label: badgeLabel.trim()
     }
@@ -449,6 +477,8 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
       processQueue()
     }, 400)
   }
+
+  const disabled = isSaving || saveStatus === "saving"
 
   return (
     <motion.div
@@ -471,7 +501,6 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
               {columnLabels[source.column_id] || source.column_id}
               {source.type ? ` · ${typeLabels[source.type] || source.type}` : " · 時間流"}
             </span>
-            {/* Status indicator */}
             {saveStatus === "saving" && <span className="text-[10px] text-blue-500 font-medium whitespace-nowrap bg-blue-500/10 px-1.5 rounded animate-pulse">儲存中...</span>}
             {saveStatus === "saved" && <span className="text-[10px] text-green-500 font-medium whitespace-nowrap bg-green-500/10 px-1.5 rounded">儲存成功</span>}
             {saveStatus === "error" && <span className="text-[10px] text-red-500 font-medium whitespace-nowrap bg-red-500/10 px-1.5 rounded" title={errorMsg}>儲存失敗</span>}
@@ -482,7 +511,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
           <button
             type="button"
             onClick={onToggle}
-            disabled={isUpdating}
+            disabled={disabled}
             className={$(
               "relative w-9 h-5 rounded-full transition-colors cursor-pointer",
               source.is_active ? "bg-green-500/30" : "bg-neutral-400/20",
@@ -499,16 +528,13 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
         </div>
       </div>
       
-      {/* ── 分類歸屬 ── */}
       <div className="flex flex-col gap-2 mt-1 text-xs px-2">
-        {/* System tags (readonly) */}
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[10px] op-40">系統：</span>
           {source.type === "hottest" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">熱榜</span>}
           {source.type === "realtime" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-600">快訊</span>}
           {!source.type && <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral/10 op-50">時間流</span>}
         </div>
-        {/* Editable inline fields */}
         <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1 op-80">
             新聞歸屬:
@@ -516,7 +542,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
               value={isMainstream} 
               onChange={(e) => setIsMainstream(e.target.value)} 
               onBlur={handleBlur}
-              disabled={isUpdating || saveStatus === "saving"}
+              disabled={disabled}
               className="bg-transparent border-b border-primary/30 outline-none text-center"
             >
               <option value="-1">依系統</option>
@@ -524,14 +550,14 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
               <option value="0">排除新聞</option>
             </select>
           </label>
-          <label className="flex items-center gap-1 op-80">
+          <label className="flex items-center gap-1 op-80" title="站方預設排序；訪客可在首頁自行拖曳（僅本機）">
             權重:
             <input 
               type="number" 
               value={weight} 
               onChange={(e) => setWeight(e.target.value)} 
               onBlur={handleBlur}
-              disabled={isUpdating || saveStatus === "saving"}
+              disabled={disabled}
               className="bg-transparent border-b border-primary/30 outline-none w-10 text-center" 
             />
           </label>
@@ -541,7 +567,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
               value={badgeLabel} 
               onChange={(e) => setBadgeLabel(e.target.value)} 
               onBlur={handleBlur}
-              disabled={isUpdating || saveStatus === "saving"}
+              disabled={disabled}
               placeholder="留空不顯示"
               className="bg-transparent border-b border-primary/30 outline-none w-16 text-center" 
             />
@@ -553,7 +579,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isUpdating }: any) 
               onChange={(e) => setTags(e.target.value)} 
               onBlur={handleBlur}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleBlur() } }}
-              disabled={isUpdating || saveStatus === "saving"}
+              disabled={disabled}
               placeholder="逗號分隔，如 news, ai"
               className="bg-transparent border-b border-primary/30 outline-none flex-1 min-w-0" 
             />
