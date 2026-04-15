@@ -6,3 +6,6 @@ compatibility_date = "2024-10-03"
 binding = "NEWSNOW_DB"
 database_name = "news-hub"
 database_id = "2dcf6ff1-e5b2-4a94-aa6d-5f663529e0dc"
+
+[vars]
+CF_PAGES = "1"
