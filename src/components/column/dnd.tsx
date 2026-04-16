@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react"
+import type { FixedColumnID, PrimitiveMetadata } from "@shared/types"
 import type { SourceID } from "@shared/types"
 import type { BaseEventPayload, ElementDragType } from "@atlaskit/pragmatic-drag-and-drop/dist/types/internal-types"
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
@@ -15,6 +16,7 @@ import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import type { ItemsProps } from "./card"
 import { CardWrapper } from "./card"
 import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
+import { primitiveMetadataAtom } from "~/atoms/primitiveMetadataAtom"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
 import { sources } from "@shared/sources"
 import { useSourceOverrides } from "~/hooks/useSourceOverrides"
@@ -22,8 +24,16 @@ import { useSourceCategories } from "~/hooks/useSourceCategories"
 
 const AnimationDuration = 200
 const WIDTH = 350
+
+function sameStringArrayOrder(a: string[] | undefined, b: string[] | undefined) {
+  if (!a?.length || !b?.length || a.length !== b.length) return false
+  return a.every((id, i) => String(id) === String(b[i]))
+}
+
 export function Dnd() {
-  const [items, setItems] = useAtom(currentSourcesAtom)
+  const [items] = useAtom(currentSourcesAtom)
+  const setMetadata = useSetAtom(primitiveMetadataAtom)
+  const manualOrderByColumn = useAtomValue(primitiveMetadataAtom).manualOrderByColumn ?? {}
   const currentColumnID = useAtomValue(currentColumnIDAtom)
   const customSourceIds = useCustomSourceIds(currentColumnID)
   const { hiddenSourceIds } = useSourceOverrides()
@@ -32,54 +42,64 @@ export function Dnd() {
 
   const { data: catData, isError: isCatError } = useSourceCategories()
 
-  // 當後端資料載入後，將排序初始化到 atom（僅首次，不覆蓋使用者自訂排序）
-  const hasSeeded = useRef<Record<string, boolean>>({})
+  // 未手動拖曳的分頁：本機 data 與站方 GET /source-categories 排序對齊（Admin 改權重後訪客會拿到最新順序）
   useEffect(() => {
-    if (catData && !isCatError && currentColumnID !== "focus") {
-      const catList = catData.categories[currentColumnID as keyof typeof catData.categories]
-      if (catList && !hasSeeded.current[currentColumnID]) {
-        // 只在 atom 中沒有跟後端重疊的項目時初始化（首次載入或新欄位）
-        const catSet = new Set(catList.map(String))
-        const hasUserOrder = items.length > 0 && items.some(id => catSet.has(String(id)))
-        if (!hasUserOrder) {
-          setItems(catList as SourceID[])
-        }
-        hasSeeded.current[currentColumnID] = true
+    if (!catData || isCatError || currentColumnID === "focus") return
+    if (manualOrderByColumn[currentColumnID]) return
+    const catList = catData.categories[currentColumnID as keyof typeof catData.categories]
+    if (!catList?.length) return
+    setMetadata((prev) => {
+      const cur = prev.data[currentColumnID] as SourceID[]
+      if (sameStringArrayOrder(cur as string[], catList as string[])) return prev
+      return {
+        ...prev,
+        updatedTime: Date.now(),
+        action: "sync",
+        data: {
+          ...prev.data,
+          [currentColumnID]: catList as SourceID[],
+        },
       }
-    }
-  }, [catData, isCatError, currentColumnID])
+    })
+  }, [catData, isCatError, currentColumnID, manualOrderByColumn[currentColumnID], setMetadata])
 
-  // 合併靜態源 + 動態源（動態源 append 到最後，去重），並從中濾掉被隱藏的靜態來源
-  // 使用 items (atom/localStorage) 作為排序基底，catData 作為有效來源集合
   const allItems = useMemo(() => {
+    const manual = !!manualOrderByColumn[currentColumnID]
+
     if (catData && !isCatError) {
       if (currentColumnID === "focus") {
         return items as SourceID[]
-      } else {
-        const catList = catData.categories[currentColumnID as keyof typeof catData.categories] as SourceID[] | undefined
-        if (!catList) return []
-        const catSet = new Set(catList.map(String))
-        // 取 atom 中已存在且仍有效的項目，保留使用者排序
-        const userOrdered = items.filter(id => catSet.has(String(id)))
-        // 加入新出現的來源（後端有、使用者本地沒有的）
-        const userSet = new Set(userOrdered.map(String))
-        const newItems = catList.filter(id => !userSet.has(String(id)))
-        return [...userOrdered, ...newItems] as SourceID[]
       }
-    } else {
-      // Fallback when backend is unavailable
-      if (currentColumnID === "more" || currentColumnID === "news") {
-        const allStatic = Object.keys(sources)
-        const dynIds = customSourceIds
-        const hiddenSet = new Set(hiddenSourceIds)
-        return [...allStatic, ...dynIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+      const catList = catData.categories[currentColumnID as keyof typeof catData.categories] as SourceID[] | undefined
+      if (!catList) return []
+      if (!manual) {
+        return catList as SourceID[]
       }
-      const staticSet = new Set(items as string[])
-      const dynamicIds = customSourceIds.filter(id => !staticSet.has(id))
-      const hiddenSet = new Set(hiddenSourceIds)
-      return [...items, ...dynamicIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+      const catSet = new Set(catList.map(String))
+      const userOrdered = items.filter(id => catSet.has(String(id)))
+      const userSet = new Set(userOrdered.map(String))
+      const newItems = catList.filter(id => !userSet.has(String(id)))
+      return [...userOrdered, ...newItems] as SourceID[]
     }
-  }, [catData, isCatError, currentColumnID, items, customSourceIds, hiddenSourceIds])
+
+    // 分類 API 尚未回傳或暫無資料：先顯示本機資料列；站方排序在載入後由 effect 寫入
+    if (!catData && !isCatError) {
+      if (currentColumnID === "focus") return items as SourceID[]
+      return items as SourceID[]
+    }
+
+    // Fallback when backend is unavailable
+    if (currentColumnID === "more" || currentColumnID === "news") {
+      const allStatic = Object.keys(sources)
+      const dynIds = customSourceIds
+      const hiddenSet = new Set(hiddenSourceIds)
+      return [...allStatic, ...dynIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+    }
+    const staticSet = new Set(items as string[])
+    const dynamicIds = customSourceIds.filter(id => !staticSet.has(id))
+    const hiddenSet = new Set(hiddenSourceIds)
+    return [...items, ...dynamicIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+  }, [catData, isCatError, currentColumnID, items, customSourceIds, hiddenSourceIds, manualOrderByColumn])
 
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
   useEntireQuery(allItems)
@@ -92,7 +112,7 @@ export function Dnd() {
   if (!allItems.length) return null
 
   return (
-    <DndWrapper items={allItems} setItems={setItems} isSingleColumn={isMobile}>
+    <DndWrapper items={allItems} setMetadata={setMetadata} columnId={currentColumnID} isSingleColumn={isMobile}>
       <OverlayScrollbar defer className="overflow-x-auto">
         <motion.ol
           className={isMobile
@@ -155,9 +175,10 @@ export function Dnd() {
   )
 }
 
-function DndWrapper({ items, setItems, isSingleColumn, children }: PropsWithChildren<{
+function DndWrapper({ items, setMetadata, columnId, isSingleColumn, children }: PropsWithChildren<{
   items: SourceID[]
-  setItems: (items: SourceID[]) => void
+  setMetadata: (update: PrimitiveMetadata | ((prev: PrimitiveMetadata) => PrimitiveMetadata)) => void
+  columnId: FixedColumnID
   isSingleColumn: boolean
 }>) {
   const onDropTargetChange = useCallback(({ location, source }: BaseEventPayload<ElementDragType>) => {
@@ -174,8 +195,19 @@ function DndWrapper({ items, setItems, isSingleColumn, children }: PropsWithChil
       closestEdgeOfTarget,
       axis: isSingleColumn ? "horizontal" : "vertical",
     })
-    setItems(update)
-  }, [items, setItems, isSingleColumn])
+    setMetadata((prev) => ({
+      ...prev,
+      updatedTime: Date.now(),
+      action: "manual",
+      manualOrderByColumn: columnId !== "focus"
+        ? { ...prev.manualOrderByColumn, [columnId]: true }
+        : prev.manualOrderByColumn,
+      data: {
+        ...prev.data,
+        [columnId]: update,
+      },
+    }))
+  }, [items, setMetadata, isSingleColumn, columnId])
   // 避免动画干扰
   const { run } = useThrottleFn(onDropTargetChange, {
     leading: true,

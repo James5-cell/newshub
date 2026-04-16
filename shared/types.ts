@@ -31,6 +31,11 @@ export interface PrimitiveMetadata {
   updatedTime: number
   data: Record<FixedColumnID, SourceID[]>
   action: "init" | "manual" | "sync"
+  /**
+   * 各固定分頁是否曾手動拖曳排序（不含 focus）。
+   * 未設或 false：跟站方 GET /source-categories 排序；true：保留本機順序。
+   */
+  manualOrderByColumn?: Partial<Record<FixedColumnID, boolean>>
 }
 
 export type FixedColumnID = (typeof fixedColumnIds)[number]

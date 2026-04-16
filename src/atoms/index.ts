@@ -5,11 +5,13 @@ export const focusSourcesAtom = atom((get) => {
   return get(primitiveMetadataAtom).data.focus
 }, (get, set, update: Update<SourceID[]>) => {
   const _ = update instanceof Function ? update(get(focusSourcesAtom)) : update
+  const prev = get(primitiveMetadataAtom)
   set(primitiveMetadataAtom, {
+    ...prev,
     updatedTime: Date.now(),
     action: "manual",
     data: {
-      ...get(primitiveMetadataAtom).data,
+      ...prev.data,
       focus: _,
     },
   })
@@ -22,11 +24,13 @@ export const currentSourcesAtom = atom((get) => {
   return get(primitiveMetadataAtom).data[id]
 }, (get, set, update: Update<SourceID[]>) => {
   const _ = update instanceof Function ? update(get(currentSourcesAtom)) : update
+  const prev = get(primitiveMetadataAtom)
   set(primitiveMetadataAtom, {
+    ...prev,
     updatedTime: Date.now(),
     action: "manual",
     data: {
-      ...get(primitiveMetadataAtom).data,
+      ...prev.data,
       [get(currentColumnIDAtom)]: _,
     },
   })

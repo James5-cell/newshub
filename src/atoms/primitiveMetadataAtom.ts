@@ -55,6 +55,7 @@ export function preprocessMetadata(target: PrimitiveMetadata) {
           }),
       ),
     },
+    manualOrderByColumn: target.manualOrderByColumn ?? {},
     action: target.action,
     updatedTime: target.updatedTime,
   } as PrimitiveMetadata
@@ -64,4 +65,5 @@ export const primitiveMetadataAtom = createPrimitiveMetadataAtom("metadata", {
   updatedTime: 0,
   data: initialMetadata,
   action: "init",
+  manualOrderByColumn: {},
 }, preprocessMetadata)
