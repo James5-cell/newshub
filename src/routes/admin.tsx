@@ -556,7 +556,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all duration-300 text-xs p-1"
+            className="op-35 hover:op-80 transition-all duration-300 text-xs p-1"
             title="編輯屬性"
           >
             <span className="i-ph:sliders-horizontal text-sm" />
@@ -875,20 +875,18 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-25 font-mono">{source.priority_weight}</span>
           )}
         </div>
-        {/* Secondary info: hover-reveal */}
-        <div className="flex items-center gap-2 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="flex items-center gap-2 mt-0.5">
           <span className="text-[10px] op-25 font-mono">{source.id}</span>
           <SourceTagsBadges tags={source.tags} name={source.name} subdomain={source.subdomain} />
         </div>
       </div>
 
-      {/* Actions: hover-reveal */}
-      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         <button
           type="button"
           onClick={onEdit}
           disabled={isUpdating}
-          className="p-1.5 rounded-md hover:bg-white/8 transition-colors duration-200 op-50 hover:op-90"
+          className="p-1.5 rounded-md hover:bg-white/8 transition-colors duration-200 op-40 hover:op-90"
           title="編輯"
         >
           <span className="i-ph:pencil-simple text-sm" />
@@ -897,7 +895,7 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
           type="button"
           onClick={onDelete}
           disabled={isUpdating}
-          className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors duration-200 op-30 hover:op-70 hover:text-red-400"
+          className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors duration-200 op-25 hover:op-70 hover:text-red-400"
           title="刪除"
         >
           <span className="i-ph:trash text-sm" />
