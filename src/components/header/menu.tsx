@@ -2,18 +2,6 @@ import { motion } from "framer-motion"
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
-// function ThemeToggle() {
-//   const { isDark, toggleDark } = useDark()
-//   return (
-//     <li onClick={toggleDark} className="cursor-pointer [&_*]:cursor-pointer transition-all">
-//       <span className={$("inline-block", isDark ? "i-ph-moon-stars-duotone" : "i-ph-sun-dim-duotone")} />
-//       <span>
-//         {isDark ? "浅色模式" : "深色模式"}
-//       </span>
-//     </li>
-//   )
-// }
-
 export function Menu() {
   const { loggedIn, login, logout, userInfo, enableLogin } = useLogin()
   const [shown, show] = useState(false)
@@ -25,54 +13,59 @@ export function Menu() {
             ? (
                 <button
                   type="button"
-                  className="h-6 w-6 rounded-full bg-cover"
-                  style={
-                    {
-                      backgroundImage: `url(${userInfo.avatar}&s=24)`,
-                    }
-                  }
-                >
-                </button>
+                  className="h-6 w-6 rounded-full bg-cover ring-1 ring-white/10 transition-all duration-200 hover:ring-white/25"
+                  style={{ backgroundImage: `url(${userInfo.avatar}&s=24)` }}
+                />
               )
             : <button type="button" className="btn i-si:more-muted-horiz-circle-duotone" />
         }
       </span>
       {shown && (
-        <div className="absolute right-0 z-99 bg-transparent pt-4 top-4">
+        <div className="absolute right-0 z-99 bg-transparent pt-3 top-4">
           <motion.div
             id="dropdown-menu"
             className={$([
-              "w-200px",
-              "bg-primary backdrop-blur-5 bg-op-70! rounded-lg shadow-xl",
+              "w-52 rounded-lg overflow-hidden",
+              "bg-[#1A1A1A]/95 backdrop-blur-md",
+              "border border-white/[0.08]",
+              "shadow-2xl shadow-black/80",
             ])}
-            initial={{
-              scale: 0.9,
-            }}
-            animate={{
-              scale: 1,
-            }}
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
           >
-            <ol className="bg-base bg-op-70! backdrop-blur-md p-2 rounded-lg color-base text-base">
+            {/* Section: Account */}
+            <div className="p-1.5">
               {enableLogin && (loggedIn
                 ? (
                     <li onClick={logout}>
-                      <span className="i-ph:sign-out-duotone inline-block" />
+                      <span className="i-ph:sign-out-duotone inline-block op-50" />
                       <span>退出登录</span>
                     </li>
                   )
                 : (
                     <li onClick={login}>
-                      <span className="i-ph:sign-in-duotone inline-block" />
-                      <span>Github 账号登录</span>
+                      <span className="i-ph:github-logo-duotone inline-block op-50" />
+                      <span>GitHub 账号登录</span>
                     </li>
                   ))}
               <AdminMenuEntry loggedIn={loggedIn} />
-              {/* <ThemeToggle /> */}
-              <li onClick={() => window.open("https://postsoma-2050.com")} className="cursor-pointer [&_*]:cursor-pointer transition-all">
-                <span className="i-ph:archive-duotone inline-block" />
-                <span>postsoma-2050 Archive</span>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-white/[0.06] mx-2" />
+
+            {/* Section: External links */}
+            <div className="p-1.5">
+              <li
+                onClick={() => window.open("https://postsoma-2050.com")}
+                className="group cursor-pointer [&_*]:cursor-pointer"
+              >
+                <span className="i-ph:archive-duotone inline-block op-50" />
+                <span className="flex-1">postsoma-2050</span>
+                <span className="text-[10px] text-white/30">Archive</span>
               </li>
-            </ol>
+            </div>
           </motion.div>
         </div>
       )}
@@ -98,9 +91,9 @@ function AdminMenuEntry({ loggedIn }: { loggedIn: boolean }) {
   if (!data?.isAdmin) return null
 
   return (
-    <li className="cursor-pointer [&_*]:cursor-pointer transition-all">
-      <Link to="/admin" className="flex items-center gap-2 w-full">
-        <span className="i-ph:gear-six-duotone inline-block" />
+    <li>
+      <Link to="/admin" className="flex items-center gap-2.5 w-full">
+        <span className="i-ph:gear-six-duotone inline-block op-50" />
         <span>管理來源</span>
       </Link>
     </li>

@@ -2,7 +2,7 @@ import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
 import { useQuery } from "@tanstack/react-query"
 import { AnimatePresence, motion, useInView } from "framer-motion"
 import { useWindowSize } from "react-use"
-import { forwardRef, useImperativeHandle } from "react"
+import { forwardRef, useImperativeHandle, useState } from "react"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import { safeParseString } from "~/utils"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
@@ -11,9 +11,6 @@ import { sources } from "@shared/sources"
 
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
   id: SourceID
-  /**
-   * 是否显示透明度，拖动时原卡片的样式
-   */
   isDragging?: boolean
   setHandleRef?: (ref: HTMLElement | null) => void
 }
@@ -25,10 +22,6 @@ interface NewsCardProps {
 
 export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging, setHandleRef, style, ...props }, dndRef) => {
   const ref = useRef<HTMLDivElement>(null)
-  const customMap = useAtomValue(customSourceMapAtom)
-  const staticSource = sources[id]
-  const customSource = customMap[id as string]
-  const color = staticSource?.color || customSource?.color || "blue"
 
   const inView = useInView(ref, {
     once: true,
@@ -40,11 +33,11 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging
     <div
       ref={ref}
       className={$(
-        "flex flex-col h-500px rounded-2xl p-4 cursor-default",
-        // "backdrop-blur-5",
-        "transition-opacity-300",
+        "flex flex-col h-500px rounded-lg cursor-default",
+        "transition-all duration-200",
         isDragging && "op-50",
-        `bg-${color}-500 dark:bg-${color} bg-op-40!`,
+        "bg-white/[0.025] border border-white/[0.06]",
+        "hover:border-white/[0.12]",
       )}
       style={{
         transformOrigin: "50% 50%",
@@ -61,20 +54,18 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
   const { refresh } = useRefetch()
   const { data: catData } = useSourceCategories()
   const meta = catData?.metadata?.[id]
-  
-  // Backward compatibility fallback during loading
+
   const customMap = useAtomValue(customSourceMapAtom)
   const staticSource = sources[id]
   const customSource = customMap[id as string]
 
-  const color = meta?.color || staticSource?.color || customSource?.color || "blue"
   const name = meta?.name || staticSource?.name || customSource?.name || (id as string)
   const title = meta?.title || staticSource?.title || customSource?.title
   const desc = staticSource?.desc
   const home = meta?.home || staticSource?.home || customSource?.home
   const sourceType = meta?.type || staticSource?.type || customSource?.type
-  
-  const iconUrl = meta 
+
+  const iconUrl = meta
     ? (meta.isDynamic ? `https://${meta.subdomain}.buzzing.cc/icon.png` : `/icons/${(id as string).split("-")[0]}.png`)
     : (staticSource ? `/icons/${(id as string).split("-")[0]}.png` : (customSource ? `https://${customSource.subdomain}.buzzing.cc/icon.png` : undefined))
 
@@ -90,7 +81,6 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
         if (jwt) headers.Authorization = `Bearer ${jwt}`
         refetchSources.delete(id)
       } else if (cacheSources.has(id)) {
-        // wait animation
         await delay(200)
         return cacheSources.get(id)
       }
@@ -133,10 +123,11 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
 
   return (
     <>
-      <div className={$("flex justify-between mx-2 mt-0 mb-2 items-center")}>
-        <div className="flex gap-2 items-center">
+      {/* Card header */}
+      <div className="flex justify-between items-center px-3 py-2.5 border-b border-white/[0.06]">
+        <div className="flex gap-2 items-center min-w-0">
           <a
-            className={$("w-8 h-8 rounded-full bg-cover")}
+            className="w-7 h-7 rounded-full bg-cover bg-center flex-shrink-0 border border-white/10"
             target="_blank"
             href={home}
             title={desc}
@@ -144,53 +135,67 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
               backgroundImage: iconUrl ? `url(${iconUrl})` : undefined,
             }}
           />
-          <span className="flex flex-col">
-            <span className="flex items-center gap-2">
-              <span
-                className="text-xl font-bold"
-                title={desc}
-              >
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-sm font-semibold text-white/90 truncate" title={desc}>
                 {name}
               </span>
-              {title && title.trim().toLowerCase() !== name.trim().toLowerCase() && <span className={$("text-sm", `color-${color} bg-base op-80 bg-op-50! px-1 rounded`)}>{title}</span>}
+              {title && title.trim().toLowerCase() !== name.trim().toLowerCase() && (
+                <span className="text-[10px] text-gray-500 truncate flex-shrink-0">{title}</span>
+              )}
+            </div>
+            <span className="text-[10px] text-gray-500">
+              <UpdatedTime isError={isError} updatedTime={data?.updatedTime} />
             </span>
-            <span className="text-xs op-70"><UpdatedTime isError={isError} updatedTime={data?.updatedTime} /></span>
-          </span>
+          </div>
         </div>
-        <div className={$("flex gap-2 text-lg", `color-${color}`)}>
+        <div className="flex gap-1 items-center text-sm flex-shrink-0">
           <button
             type="button"
-            className={$("btn i-ph:arrow-counter-clockwise-duotone", isFetching && "animate-spin i-ph:circle-dashed-duotone")}
+            className={$(
+              "btn p-1 rounded transition-all duration-200",
+              isFetching
+                ? "animate-spin i-ph:circle-dashed-duotone op-50"
+                : "i-ph:arrow-counter-clockwise-duotone op-30 hover:op-70",
+            )}
             onClick={() => refresh(id)}
           />
           <button
             type="button"
-            className={$("btn", isFocused ? "i-ph:star-fill" : "i-ph:star-duotone")}
+            className={$(
+              "btn p-1 rounded transition-all duration-200",
+              isFocused
+                ? "i-ph:star-fill text-amber-400/70"
+                : "i-ph:star-duotone op-30 hover:op-70",
+            )}
             onClick={toggleFocus}
           />
-          {/* firefox cannot drag a button */}
           {setHandleRef && (
             <div
               ref={setHandleRef}
-              className={$("btn", "i-ph:dots-six-vertical-duotone", "cursor-grab")}
+              className="btn i-ph:dots-six-vertical-duotone op-20 hover:op-50 cursor-grab transition-opacity duration-200"
             />
           )}
         </div>
       </div>
 
+      {/* Scrollable news feed */}
       <OverlayScrollbar
         className={$([
-          "h-full p-2 overflow-y-auto rounded-2xl bg-base bg-op-70!",
-          isFetching && `animate-pulse`,
-          `sprinkle-${color}`,
+          "flex-1 overflow-y-auto",
+          isFetching && "animate-pulse",
         ])}
         options={{
           overflow: { x: "hidden" },
         }}
         defer
       >
-        <div className={$("transition-opacity-500", isFetching && "op-20")}>
-          {!!data?.items?.length && (sourceType === "hottest" ? <NewsListHot items={data.items} /> : <NewsListTimeLine items={data.items} />)}
+        <div className={$("transition-opacity duration-300", isFetching && "op-30")}>
+          {!!data?.items?.length && (
+            sourceType === "hottest"
+              ? <NewsListHot items={data.items} />
+              : <NewsListTimeLine items={data.items} />
+          )}
         </div>
       </OverlayScrollbar>
     </>
@@ -200,7 +205,7 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
 function UpdatedTime({ isError, updatedTime }: { updatedTime: any, isError: boolean }) {
   const relativeTime = useRelativeTime(updatedTime ?? "")
   if (relativeTime) return `${relativeTime}更新`
-  if (isError) return "获取失败"
+  if (isError) return <span className="text-red-400/60">获取失败</span>
   return "加载中..."
 }
 
@@ -216,12 +221,12 @@ function DiffNumber({ diff }: { diff: number }) {
 
   return (
     <AnimatePresence>
-      { shown && (
+      {shown && (
         <motion.span
           initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 0.5, y: -7 }}
           exit={{ opacity: 0, y: -15 }}
-          className={$("absolute left-0 text-xs", diff < 0 ? "text-green" : "text-red")}
+          className={$("absolute left-0 text-[10px]", diff < 0 ? "text-green-400/70" : "text-red-400/70")}
         >
           {diff > 0 ? `+${diff}` : diff}
         </motion.span>
@@ -229,6 +234,7 @@ function DiffNumber({ diff }: { diff: number }) {
     </AnimatePresence>
   )
 }
+
 function ExtraInfo({ item }: { item: NewsItem }) {
   if (item?.extra?.info) {
     return <>{item.extra.info}</>
@@ -253,10 +259,11 @@ function NewsUpdatedTime({ date }: { date: string | number }) {
   const relativeTime = useRelativeTime(date)
   return <>{relativeTime}</>
 }
+
 function NewsListHot({ items }: { items: NewsItem[] }) {
   const { width } = useWindowSize()
   return (
-    <ol className="flex flex-col gap-2">
+    <ol className="flex flex-col">
       {items?.map((item, i) => (
         <a
           href={width < 768 ? item.mobileUrl || item.url : item.url}
@@ -264,19 +271,22 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
           key={item.id}
           title={item.extra?.hover}
           className={$(
-            "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer transition-all",
-            "hover:bg-neutral-400/10 rounded-md pr-1 visited:(text-neutral-400)",
+            "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer",
+            "py-1.5 px-2 transition-colors duration-150",
+            "hover:bg-white/[0.04]",
+            "border-b border-white/[0.04] last:border-b-0",
+            "visited:(text-neutral-500)",
           )}
         >
-          <span className={$("bg-neutral-400/10 min-w-6 flex justify-center items-center rounded-md text-sm")}>
+          <span className="bg-white/[0.06] min-w-5 h-5 flex justify-center items-center rounded text-[10px] text-gray-500 font-mono self-start mt-0.5">
             {i + 1}
           </span>
           {!!item.extra?.diff && <DiffNumber diff={item.extra.diff} />}
-          <span className="self-start line-height-none">
-            <span className="mr-2 text-base">
+          <span className="flex-1 min-w-0">
+            <span className="text-sm text-white/85 leading-snug">
               {item.title}
             </span>
-            <span className="text-xs text-neutral-400/80 truncate align-middle">
+            <span className="text-[10px] text-gray-500 ml-1.5 align-middle whitespace-nowrap">
               <ExtraInfo item={item} />
             </span>
           </span>
@@ -289,29 +299,36 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
 function NewsListTimeLine({ items }: { items: NewsItem[] }) {
   const { width } = useWindowSize()
   return (
-    <ol className="border-s border-neutral-400/50 flex flex-col ml-1">
+    <ol className="flex flex-col">
       {items?.map(item => (
-        <li key={`${item.id}-${item.pubDate || item?.extra?.date || ""}`} className="flex flex-col">
-          <span className="flex items-center gap-1 text-neutral-400/50 ml--1px">
-            <span className="">-</span>
-            <span className="text-xs text-neutral-400/80">
+        <li
+          key={`${item.id}-${item.pubDate || item?.extra?.date || ""}`}
+          className="border-b border-white/[0.04] last:border-b-0"
+        >
+          {/* Meta line: timestamp + extra */}
+          <div className="flex items-center gap-1.5 px-2 pt-1.5">
+            <span className="w-1 h-1 rounded-full bg-gray-600 flex-shrink-0" />
+            <span className="text-[10px] text-gray-500">
               {(item.pubDate || item?.extra?.date) && <NewsUpdatedTime date={(item.pubDate || item?.extra?.date)!} />}
             </span>
-            <span className="text-xs text-neutral-400/80">
+            <span className="text-[10px] text-gray-600">
               <ExtraInfo item={item} />
             </span>
-          </span>
+          </div>
+          {/* Title */}
           <a
             className={$(
-              "ml-2 px-1 hover:bg-neutral-400/10 rounded-md visited:(text-neutral-400/80)",
-              "cursor-pointer [&_*]:cursor-pointer transition-all",
+              "block px-2 pb-1.5 pt-0.5 cursor-pointer [&_*]:cursor-pointer",
+              "transition-colors duration-150",
+              "hover:bg-white/[0.04]",
+              "visited:(text-neutral-500)",
             )}
             href={width < 768 ? item.mobileUrl || item.url : item.url}
             title={item.extra?.hover}
             target="_blank"
             rel="noopener noreferrer"
           >
-            {item.title}
+            <span className="text-sm text-white/85 leading-snug">{item.title}</span>
           </a>
         </li>
       ))}

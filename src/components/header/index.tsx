@@ -59,7 +59,7 @@ export function Header() {
           <NavBar />
         </span>
       </span>
-      <span className="justify-self-end flex gap-2 items-center text-xl text-primary-600 dark:text-primary">
+      <span className="justify-self-end flex gap-2 items-center text-lg op-60">
         <GoTop />
         <Refresh />
         <Menu />

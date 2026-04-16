@@ -116,8 +116,8 @@ export function Dnd() {
       <OverlayScrollbar defer className="overflow-x-auto">
         <motion.ol
           className={isMobile
-            ? "flex px-2 gap-6 pb-4 scroll-smooth"
-            : "grid w-full gap-6"}
+            ? "flex px-2 gap-5 pb-4 scroll-smooth"
+            : "grid w-full gap-5"}
           ref={parent}
           style={isMobile
             ? {
@@ -226,9 +226,7 @@ function CardOverlay({ id }: { id: SourceID }) {
   const customMap = useAtomValue(customSourceMapAtom)
   const staticSource = sources[id]
   const customSource = customMap[id as string]
-  const color = staticSource?.color || customSource?.color || "blue"
   const name = staticSource?.name || customSource?.name || id
-  const title = staticSource?.title || customSource?.title
   const iconUrl = staticSource
     ? `/icons/${(id as string).split("-")[0]}.png`
     : (customSource ? `https://${customSource.subdomain}.buzzing.cc/icon.png` : undefined)
@@ -236,32 +234,27 @@ function CardOverlay({ id }: { id: SourceID }) {
   return (
     <div className={$(
       "flex flex-col p-4 backdrop-blur-5",
-      `bg-${color}-500 dark:bg-${color} bg-op-40!`,
-      !isiOS() && "rounded-2xl",
+      "bg-white/[0.06] border border-white/[0.1]",
+      !isiOS() && "rounded-xl",
     )}
     >
-      <div className={$("flex justify-between mx-2 items-center")}>
-        <div className="flex gap-2 items-center">
+      <div className="flex justify-between mx-2 items-center">
+        <div className="flex gap-2.5 items-center">
           <div
-            className={$("w-8 h-8 rounded-full bg-cover")}
+            className="w-7 h-7 rounded-full bg-cover bg-center border border-white/8"
             style={{
               backgroundImage: iconUrl ? `url(${iconUrl})` : undefined,
             }}
           />
           <span className="flex flex-col">
-            <span className="flex items-center gap-2">
-              <span className="text-xl font-bold">
-                {name}
-              </span>
-              {title && <span className={$("text-sm", `color-${color} bg-base op-80 bg-op-50! px-1 rounded`)}>{title}</span>}
-            </span>
-            <span className="text-xs op-70">拖拽中</span>
+            <span className="text-base font-medium op-80">{name}</span>
+            <span className="text-[10px] op-30">拖拽中</span>
           </span>
         </div>
-        <div className={$("flex gap-2 text-lg", `color-${color}`)}>
+        <div className="flex gap-2 text-sm op-40">
           <button
             type="button"
-            className={$("i-ph:dots-six-vertical-duotone", "cursor-grabbing")}
+            className="i-ph:dots-six-vertical cursor-grabbing"
           />
         </div>
       </div>

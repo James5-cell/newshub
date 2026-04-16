@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { motion, AnimatePresence } from "framer-motion"
@@ -29,6 +29,9 @@ interface AdminSource {
   badge_label?: string
 }
 
+const STATIC_COLLAPSED_COUNT = 8
+const PREVIEW_COLLAPSED_COUNT = 5
+
 function getAuthHeaders() {
   const jwt = safeParseString(localStorage.getItem("jwt"))
   return jwt ? { Authorization: `Bearer ${jwt}` } : {}
@@ -38,7 +41,6 @@ function AdminPage() {
   const { loggedIn, enableLogin } = useLogin()
   const queryClient = useQueryClient()
 
-  // 檢查是否為 Admin
   const { data: adminCheck, isLoading: checkingAdmin } = useQuery({
     queryKey: ["admin-check"],
     queryFn: async () => {
@@ -51,7 +53,6 @@ function AdminPage() {
     retry: false,
   })
 
-  // 拉取所有源（含 inactive）
   const { data: allSources = [], isLoading, refetch } = useQuery({
     queryKey: ["admin-sources"],
     queryFn: async () => {
@@ -64,7 +65,6 @@ function AdminPage() {
     retry: false,
   })
 
-  // 新增
   const createMutation = useMutation({
     mutationFn: async (body: Record<string, any>) => {
       return await myFetch("/admin/sources", {
@@ -82,7 +82,6 @@ function AdminPage() {
 
   const [updatingDynamicId, setUpdatingDynamicId] = useState<string | null>(null)
 
-  // 更新（含 toggle active）
   const updateMutation = useMutation({
     mutationFn: async (body: Record<string, any>) => {
       setUpdatingDynamicId(body.id)
@@ -112,7 +111,6 @@ function AdminPage() {
     },
   })
 
-  // 刪除
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return await myFetch(`/admin/sources`, {
@@ -136,14 +134,14 @@ function AdminPage() {
   })
 
   const [editingSource, setEditingSource] = useState<AdminSource | null>(null)
+  const [showForm, setShowForm] = useState(false)
 
-  // ── 權限守衛 ──
   if (!enableLogin || !loggedIn) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <span className="i-ph:lock-duotone text-4xl op-30" />
-        <p className="text-lg op-50">請先登入 GitHub 帳號</p>
-        <Link to="/" className="btn text-sm px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <span className="i-ph:lock-duotone text-3xl op-20" />
+        <p className="text-sm op-40 tracking-wide">請先登入 GitHub 帳號</p>
+        <Link to="/" className="text-xs op-50 hover:op-80 transition-opacity">
           返回首頁
         </Link>
       </div>
@@ -153,17 +151,17 @@ function AdminPage() {
   if (checkingAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <span className="i-ph:circle-dashed-duotone text-2xl animate-spin op-30" />
+        <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
       </div>
     )
   }
 
   if (!adminCheck?.isAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <span className="i-ph:shield-warning-duotone text-4xl op-30" />
-        <p className="text-lg op-50">你沒有管理員權限</p>
-        <Link to="/" className="btn text-sm px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <span className="i-ph:shield-warning-duotone text-3xl op-20" />
+        <p className="text-sm op-40 tracking-wide">你沒有管理員權限</p>
+        <Link to="/" className="text-xs op-50 hover:op-80 transition-opacity">
           返回首頁
         </Link>
       </div>
@@ -171,54 +169,75 @@ function AdminPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pb-20">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <span className="i-ph:gear-six-duotone" />
-          動態來源管理
-        </h1>
-        <Link to="/" className="btn text-sm px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center gap-1">
-          <span className="i-ph:arrow-left" />
-          返回首頁
-        </Link>
+    <div className="max-w-5xl mx-auto px-6 pb-24 pt-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-12">
+        <div>
+          <h1 className="text-xl font-medium tracking-tight op-90">來源管理</h1>
+          <p className="text-xs op-30 mt-1">管理動態與靜態來源的分類、權重與顯隱</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {!showForm && !editingSource && (
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="text-xs px-3 py-1.5 rounded-md border border-white/8 op-60 hover:op-100 hover:border-white/20 transition-all duration-300"
+            >
+              新增來源
+            </button>
+          )}
+          <Link to="/" className="text-xs op-30 hover:op-60 transition-opacity duration-300">
+            返回首頁
+          </Link>
+        </div>
       </div>
 
-      {/* ── 新增 / 編輯 表單 ── */}
-      <AddSourceForm
-        editingSource={editingSource}
-        onSubmit={(data) => {
-          if (editingSource) {
-            updateMutation.mutate({ id: editingSource.id, ...data })
-            setEditingSource(null)
-          } else {
-            createMutation.mutate(data)
-          }
-        }}
-        onCancelEdit={() => setEditingSource(null)}
-        isLoading={createMutation.isPending || updateMutation.isPending}
-        error={createMutation.error || updateMutation.error}
-      />
+      {/* Add / Edit form - collapsed by default */}
+      <AnimatePresence>
+        {(showForm || editingSource) && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden mb-10"
+          >
+            <AddSourceForm
+              editingSource={editingSource}
+              onSubmit={(data) => {
+                if (editingSource) {
+                  updateMutation.mutate({ id: editingSource.id, ...data })
+                  setEditingSource(null)
+                } else {
+                  createMutation.mutate(data)
+                }
+                setShowForm(false)
+              }}
+              onCancelEdit={() => {
+                setEditingSource(null)
+                setShowForm(false)
+              }}
+              isLoading={createMutation.isPending || updateMutation.isPending}
+              error={createMutation.error || updateMutation.error}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ── 來源列表 ── */}
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className="i-ph:list-bullets-duotone" />
-          已設定來源
-          <span className="text-sm op-50 font-normal">({allSources.length})</span>
-        </h2>
+      {/* Dynamic sources */}
+      {allSources.length > 0 && (
+        <section className="mb-14">
+          <div className="flex items-baseline justify-between mb-5">
+            <h2 className="text-sm font-medium op-60 tracking-wide">動態來源</h2>
+            <span className="text-[10px] op-25">{allSources.length} 項</span>
+          </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <span className="i-ph:circle-dashed-duotone text-2xl animate-spin op-30" />
-          </div>
-        ) : allSources.length === 0 ? (
-          <div className="text-center py-12 op-40">
-            <span className="i-ph:database-duotone text-4xl block mb-2" />
-            <p>尚未新增任何動態來源</p>
-          </div>
-        ) : (
-          <AnimatePresence>
-            <div className="flex flex-col gap-3">
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-px rounded-xl overflow-hidden border border-white/5">
               {allSources.map(source => (
                 <SourceRow
                   key={source.id}
@@ -229,10 +248,11 @@ function AdminPage() {
                   })}
                   onEdit={() => {
                     setEditingSource(source)
+                    setShowForm(true)
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
                   onDelete={() => {
-                    if (confirm(`確定要刪除 "${source.name}" 嗎？\n注意：這無法復原！`)) {
+                    if (confirm(`確定要刪除「${source.name}」嗎？`)) {
                       deleteMutation.mutate(source.id)
                     }
                   }}
@@ -240,27 +260,31 @@ function AdminPage() {
                 />
               ))}
             </div>
-          </AnimatePresence>
-        )}
-      </div>
+          )}
+        </section>
+      )}
 
-      {/* ── 靜態來源管理 ── */}
+      {/* Static sources */}
       <StaticSourceManager isAdmin={adminCheck?.isAdmin === true} />
 
-      {/* ── 即時分類預覽 ── */}
+      {/* Category preview */}
       {adminCheck?.isAdmin && <CategoryPreview />}
     </div>
   )
 }
 
+// ────────────────────────────────────────────────
+// Static Source Manager
+// ────────────────────────────────────────────────
 function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient()
   const { loggedIn } = useLogin()
+  const [expanded, setExpanded] = useState(false)
 
   const { data: overrides = [], isLoading } = useQuery({
     queryKey: ["source-overrides-admin"],
     queryFn: async () => {
-      const res: { source_id: string, is_hidden: number, is_mainstream_media?: number, priority_weight?: number, tags?: string }[] = await myFetch("/admin/source-overrides", {
+      const res: { source_id: string, is_hidden: number, is_mainstream_media?: number, priority_weight?: number, tags?: string, badge_label?: string }[] = await myFetch("/admin/source-overrides", {
         headers: getAuthHeaders(),
       })
       return res
@@ -279,7 +303,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
         column_id: s.column,
         type: s.type,
         is_active: override?.is_hidden === 1 ? 0 : 1,
-        override // pass internal reference for traits editing
+        override,
       }
     })
   }, [overrides])
@@ -297,13 +321,13 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
     },
     onSuccess: (_, variables) => {
       queryClient.setQueryData(["source-overrides-admin"], (old: any[] | undefined) => {
-        const payload = { 
-          source_id: variables.id, 
+        const payload = {
+          source_id: variables.id,
           is_hidden: variables.is_hidden,
           is_mainstream_media: variables.is_mainstream_media,
           priority_weight: variables.priority_weight,
           tags: variables.tags,
-          badge_label: variables.badge_label
+          badge_label: variables.badge_label,
         }
         if (!old) return [payload]
         const existing = old.findIndex(o => o.source_id === variables.id)
@@ -327,70 +351,87 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
     },
   })
 
+  const visibleSources = expanded ? staticSourcesList : staticSourcesList.slice(0, STATIC_COLLAPSED_COUNT)
+  const hiddenCount = staticSourcesList.length - STATIC_COLLAPSED_COUNT
+
   return (
-    <div className="mt-12 pt-8 border-t border-primary/10">
-      <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-        <span className="i-ph:cube-duotone" />
-        靜態來源管理
-      </h2>
-      <p className="text-sm op-50 mb-6">可在此隱藏系統預設的靜態新聞來源。「權重」為站方預設排序（數字越大越前面），訪客可在首頁自行拖曳覆蓋。</p>
+    <section className="mb-14">
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="text-sm font-medium op-60 tracking-wide">靜態來源</h2>
+        <span className="text-[10px] op-25">{staticSourcesList.length} 項</span>
+      </div>
+      <p className="text-[11px] op-25 mb-6">權重越大排越前。訪客可在首頁拖曳自訂順序（僅本機）。</p>
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <span className="i-ph:circle-dashed-duotone text-2xl animate-spin op-30" />
+        <div className="flex justify-center py-12">
+          <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
         </div>
       ) : (
-        <AnimatePresence>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {staticSourcesList.map(source => (
-              <StaticSourceRow
-                key={source.id}
-                source={source}
-                onToggle={() => toggleMutation.mutate({
-                  id: source.id,
-                  is_hidden: source.is_active ? 1 : 0,
-                  is_mainstream_media: source.override?.is_mainstream_media ?? -1,
-                  priority_weight: source.override?.priority_weight ?? 0,
-                  tags: source.override?.tags ?? "[]",
-                  badge_label: source.override?.badge_label ?? ""
-                })}
-                onUpdateTraits={(traits: any) => toggleMutation.mutateAsync({
-                  id: source.id,
-                  is_hidden: source.is_active ? 0 : 1,
-                  ...traits
-                })}
-                isSaving={savingId === source.id}
-              />
-            ))}
+        <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px rounded-xl overflow-hidden border border-white/5">
+            <AnimatePresence initial={false}>
+              {visibleSources.map(source => (
+                <StaticSourceRow
+                  key={source.id}
+                  source={source}
+                  onToggle={() => toggleMutation.mutate({
+                    id: source.id,
+                    is_hidden: source.is_active ? 1 : 0,
+                    is_mainstream_media: source.override?.is_mainstream_media ?? -1,
+                    priority_weight: source.override?.priority_weight ?? 0,
+                    tags: source.override?.tags ?? "[]",
+                    badge_label: source.override?.badge_label ?? "",
+                  })}
+                  onUpdateTraits={(traits: any) => toggleMutation.mutateAsync({
+                    id: source.id,
+                    is_hidden: source.is_active ? 0 : 1,
+                    ...traits,
+                  })}
+                  isSaving={savingId === source.id}
+                />
+              ))}
+            </AnimatePresence>
           </div>
-        </AnimatePresence>
+
+          {/* Fade-out gradient + expand trigger */}
+          {!expanded && hiddenCount > 0 && (
+            <div className="relative mt-0">
+              <div className="absolute -top-16 left-0 right-0 h-16 bg-gradient-to-t from-base to-transparent pointer-events-none" />
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="w-full py-3 text-center text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+              >
+                展開其餘 {hiddenCount} 項
+              </button>
+            </div>
+          )}
+          {expanded && hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="w-full py-3 text-center text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+            >
+              收合
+            </button>
+          )}
+        </div>
       )}
-    </div>
+    </section>
   )
 }
 
+// ────────────────────────────────────────────────
+// Static Source Row (hover-reveal editing)
+// ────────────────────────────────────────────────
 function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
   source: any
   onToggle: () => void
   onUpdateTraits: (traits: any) => Promise<any>
   isSaving: boolean
 }) {
-  const columnLabels: Record<string, string> = {
-    world: "國際",
-    china: "國內",
-    tech: "科技",
-    finance: "財經",
-  }
-
-  const typeLabels: Record<string, string> = {
-    hottest: "熱榜",
-    realtime: "快訊",
-    "": "時間流",
-  }
-
   const override = source.override || {}
 
-  // All editable state as strings to avoid mixed types
   const [isMainstream, setIsMainstream] = useState(String(override.is_mainstream_media ?? -1))
   const [weight, setWeight] = useState(String(override.priority_weight ?? 0))
   const [badgeLabel, setBadgeLabel] = useState(override.badge_label ?? "")
@@ -398,6 +439,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
     try { return JSON.parse(override.tags || "[]").join(", ") }
     catch { return "" }
   })
+  const [isOpen, setIsOpen] = useState(false)
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
@@ -407,8 +449,6 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
   const debounceRef = useRef<any>(null)
   const lastSyncedRef = useRef<string>("")
 
-  // Only sync from override when it genuinely changed server-side
-  // (avoids clobbering local edits caused by optimistic setQueryData)
   useEffect(() => {
     const fingerprint = JSON.stringify({
       m: override.is_mainstream_media,
@@ -418,7 +458,6 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
     })
     if (fingerprint === lastSyncedRef.current) return
     lastSyncedRef.current = fingerprint
-
     if (saveStatus === "saving") return
 
     setIsMainstream(String(override.is_mainstream_media ?? -1))
@@ -427,31 +466,25 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
     try { setTags(JSON.parse(override.tags || "[]").join(", ")) } catch { setTags("") }
   }, [override, saveStatus])
 
-  const processQueue = async () => {
+  const processQueue = useCallback(async () => {
     if (inFlightRef.current || !pendingPayloadRef.current) return
-    
     inFlightRef.current = true
     const payload = pendingPayloadRef.current
     pendingPayloadRef.current = null
-    
     setSaveStatus("saving")
     setErrorMsg("")
     try {
       await onUpdateTraits(payload)
       setSaveStatus("saved")
-      setTimeout(() => {
-        setSaveStatus(prev => prev === "saved" ? "idle" : prev)
-      }, 2000)
+      setTimeout(() => setSaveStatus(prev => prev === "saved" ? "idle" : prev), 2000)
     } catch (err: any) {
       setSaveStatus("error")
       setErrorMsg(err.message || "儲存失敗")
     } finally {
       inFlightRef.current = false
-      if (pendingPayloadRef.current) {
-        processQueue()
-      }
+      if (pendingPayloadRef.current) processQueue()
     }
-  }
+  }, [onUpdateTraits])
 
   const normalizeTags = (raw: string): string[] => {
     const seen = new Set<string>()
@@ -469,128 +502,154 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
       is_mainstream_media: Number(isMainstream),
       priority_weight: Number.isFinite(parsedWeight) ? parsedWeight : 0,
       tags: JSON.stringify(normalizeTags(tags)),
-      badge_label: badgeLabel.trim()
+      badge_label: badgeLabel.trim(),
     }
-    
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      processQueue()
-    }, 400)
+    debounceRef.current = setTimeout(() => processQueue(), 400)
   }
 
   const disabled = isSaving || saveStatus === "saving"
 
+  const weightNum = Number(weight) || 0
+  const mainstreamNum = Number(isMainstream)
+
   return (
     <motion.div
       layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className={$(
-        "flex flex-col gap-3 p-3 rounded-xl transition-all",
-        "border border-primary/10 relative",
-        source.is_active ? "bg-primary/5" : "bg-neutral/5 op-60",
+        "group relative flex flex-col transition-all duration-300",
+        "bg-white/[0.02] hover:bg-white/[0.05]",
+        !source.is_active && "op-40",
       )}
     >
-      <div className="flex items-center gap-3">
+      {/* Primary row */}
+      <div className="flex items-center gap-3 px-4 py-3">
         <div
-          className="w-8 h-8 rounded-full bg-cover bg-center flex-shrink-0 border-2 border-primary/10"
+          className="w-7 h-7 rounded-full bg-cover bg-center flex-shrink-0 border border-white/8"
           style={{ backgroundImage: `url(/icons/${source.id.split('-')[0]}.png)` }}
         />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-sm">{source.name}</span>
-            <span className="text-[10px] op-50">
-              {columnLabels[source.column_id] || source.column_id}
-              {source.type ? ` · ${typeLabels[source.type] || source.type}` : " · 時間流"}
-            </span>
-            {saveStatus === "saving" && <span className="text-[10px] text-blue-500 font-medium whitespace-nowrap bg-blue-500/10 px-1.5 rounded animate-pulse">儲存中...</span>}
-            {saveStatus === "saved" && <span className="text-[10px] text-green-500 font-medium whitespace-nowrap bg-green-500/10 px-1.5 rounded">儲存成功</span>}
-            {saveStatus === "error" && <span className="text-[10px] text-red-500 font-medium whitespace-nowrap bg-red-500/10 px-1.5 rounded" title={errorMsg}>儲存失敗</span>}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium op-85 truncate">{source.name}</span>
+            {/* Inline indicators: only show non-default / exception states */}
+            {!source.is_active && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-50">隱藏</span>
+            )}
+            {mainstreamNum === 1 && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-40">新聞</span>
+            )}
+            {weightNum !== 0 && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-30 font-mono">{weightNum}</span>
+            )}
+            {/* Save status */}
+            {saveStatus === "saving" && <span className="text-[9px] op-40 animate-pulse">...</span>}
+            {saveStatus === "saved" && <span className="text-[9px] op-30">saved</span>}
+            {saveStatus === "error" && <span className="text-[9px] text-red-400/60" title={errorMsg}>error</span>}
           </div>
-          <div className="text-[10px] op-40 mt-0.5">{source.id}</div>
         </div>
-        <div className="flex items-center flex-shrink-0">
+
+        {/* Hover-reveal actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all duration-300 text-xs p-1"
+            title="編輯屬性"
+          >
+            <span className="i-ph:sliders-horizontal text-sm" />
+          </button>
           <button
             type="button"
             onClick={onToggle}
             disabled={disabled}
             className={$(
-              "relative w-9 h-5 rounded-full transition-colors cursor-pointer",
-              source.is_active ? "bg-green-500/30" : "bg-neutral-400/20",
+              "relative w-8 h-[18px] rounded-full transition-all duration-300 cursor-pointer flex-shrink-0",
+              source.is_active ? "bg-white/15" : "bg-white/5",
             )}
-            title={source.is_active ? "隱藏來源" : "顯示來源"}
           >
             <span
               className={$(
-                "absolute top-0.5 w-4 h-4 rounded-full transition-all",
-                source.is_active ? "left-4.5 bg-green-500" : "left-0.5 bg-neutral-400",
+                "absolute top-[2px] w-[14px] h-[14px] rounded-full transition-all duration-300",
+                source.is_active ? "left-[15px] bg-white/70" : "left-[2px] bg-white/25",
               )}
             />
           </button>
         </div>
       </div>
-      
-      <div className="flex flex-col gap-2 mt-1 text-xs px-2">
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] op-40">系統：</span>
-          {source.type === "hottest" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">熱榜</span>}
-          {source.type === "realtime" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-600">快訊</span>}
-          {!source.type && <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral/10 op-50">時間流</span>}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <label className="flex items-center gap-1 op-80">
-            新聞歸屬:
-            <select 
-              value={isMainstream} 
-              onChange={(e) => setIsMainstream(e.target.value)} 
-              onBlur={handleBlur}
-              disabled={disabled}
-              className="bg-transparent border-b border-primary/30 outline-none text-center"
-            >
-              <option value="-1">依系統</option>
-              <option value="1">加入新聞</option>
-              <option value="0">排除新聞</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-1 op-80" title="站方預設排序；訪客可在首頁自行拖曳（僅本機）">
-            權重:
-            <input 
-              type="number" 
-              value={weight} 
-              onChange={(e) => setWeight(e.target.value)} 
-              onBlur={handleBlur}
-              disabled={disabled}
-              className="bg-transparent border-b border-primary/30 outline-none w-10 text-center" 
-            />
-          </label>
-          <label className="flex items-center gap-1 op-80">
-            Badge:
-            <input 
-              value={badgeLabel} 
-              onChange={(e) => setBadgeLabel(e.target.value)} 
-              onBlur={handleBlur}
-              disabled={disabled}
-              placeholder="留空不顯示"
-              className="bg-transparent border-b border-primary/30 outline-none w-16 text-center" 
-            />
-          </label>
-          <label className="flex flex-1 items-center gap-1 op-80">
-            標籤:
-            <input 
-              value={tags} 
-              onChange={(e) => setTags(e.target.value)} 
-              onBlur={handleBlur}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleBlur() } }}
-              disabled={disabled}
-              placeholder="逗號分隔，如 news, ai"
-              className="bg-transparent border-b border-primary/30 outline-none flex-1 min-w-0" 
-            />
-          </label>
-        </div>
-      </div>
+
+      {/* Expandable editing panel */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3 pt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] border-t border-white/5">
+              <label className="flex items-center gap-1.5 op-50 hover:op-80 transition-opacity">
+                <span className="op-60">歸屬</span>
+                <select
+                  value={isMainstream}
+                  onChange={(e) => setIsMainstream(e.target.value)}
+                  onBlur={handleBlur}
+                  disabled={disabled}
+                  className="bg-transparent border-b border-white/10 outline-none text-center py-0.5 focus:border-white/30 transition-colors"
+                >
+                  <option value="-1">依系統</option>
+                  <option value="1">加入新聞</option>
+                  <option value="0">排除新聞</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5 op-50 hover:op-80 transition-opacity" title="站方預設排序；訪客可在首頁自行拖曳">
+                <span className="op-60">權重</span>
+                <input
+                  type="number"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  onBlur={handleBlur}
+                  disabled={disabled}
+                  className="bg-transparent border-b border-white/10 outline-none w-10 text-center py-0.5 focus:border-white/30 transition-colors font-mono"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 op-50 hover:op-80 transition-opacity">
+                <span className="op-60">Badge</span>
+                <input
+                  value={badgeLabel}
+                  onChange={(e) => setBadgeLabel(e.target.value)}
+                  onBlur={handleBlur}
+                  disabled={disabled}
+                  placeholder="—"
+                  className="bg-transparent border-b border-white/10 outline-none w-14 text-center py-0.5 focus:border-white/30 transition-colors"
+                />
+              </label>
+              <label className="flex flex-1 items-center gap-1.5 op-50 hover:op-80 transition-opacity min-w-0">
+                <span className="op-60 flex-shrink-0">標籤</span>
+                <input
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  onBlur={handleBlur}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleBlur() } }}
+                  disabled={disabled}
+                  placeholder="news, ai"
+                  className="bg-transparent border-b border-white/10 outline-none flex-1 min-w-0 py-0.5 focus:border-white/30 transition-colors"
+                />
+              </label>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
 
-// ── 新增來源表單 ──
+// ────────────────────────────────────────────────
+// Add / Edit Source Form
+// ────────────────────────────────────────────────
 function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error }: {
   onSubmit: (data: Record<string, any>) => void
   onCancelEdit: () => void
@@ -603,14 +662,12 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
   const [type, setType] = useState("")
   const [columnId, setColumnId] = useState("world")
   const [color, setColor] = useState("blue")
-
-  // Traits
   const [isMainstream, setIsMainstream] = useState(0)
   const [priorityWeight, setPriorityWeight] = useState(0)
   const [tags, setTags] = useState("")
   const [badgeLabel, setBadgeLabel] = useState("")
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
-  // 當傳入編輯對象時，同步到表單
   useEffect(() => {
     if (editingSource) {
       setName(editingSource.name)
@@ -622,24 +679,17 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
       setPriorityWeight(editingSource.priority_weight ?? 0)
       setBadgeLabel(editingSource.badge_label ?? "")
       try { setTags(JSON.parse(editingSource.tags || "[]").join(", ")) } catch { setTags("") }
+      setShowAdvanced(true)
     } else {
-      setName("")
-      setSubdomain("")
-      setType("")
-      setColumnId("world")
-      setColor("blue")
-      setIsMainstream(0)
-      setPriorityWeight(0)
-      setTags("")
-      setBadgeLabel("")
+      setName(""); setSubdomain(""); setType(""); setColumnId("world"); setColor("blue")
+      setIsMainstream(0); setPriorityWeight(0); setTags(""); setBadgeLabel("")
+      setShowAdvanced(false)
     }
   }, [editingSource])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || !subdomain.trim()) return
-    
-    // safe parse tags: split, trim, filter, case-insensitive dedup
     const seen = new Set<string>()
     const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean).filter(t => {
       const key = t.toLowerCase()
@@ -647,212 +697,149 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
       seen.add(key)
       return true
     })
-
     onSubmit({
-      name: name.trim(),
-      subdomain: subdomain.trim(),
-      type,
-      column_id: columnId,
-      color,
-      is_mainstream_media: isMainstream,
-      priority_weight: priorityWeight,
-      tags: JSON.stringify(parsedTags),
-      badge_label: badgeLabel.trim()
+      name: name.trim(), subdomain: subdomain.trim(), type, column_id: columnId, color,
+      is_mainstream_media: isMainstream, priority_weight: priorityWeight,
+      tags: JSON.stringify(parsedTags), badge_label: badgeLabel.trim(),
     })
-    // 提交後不清空，交給上層 onCancelEdit / setEditingSource(null) 來觸發清空
     if (!editingSource) {
-      setName("")
-      setSubdomain("")
-      setType("")
-      setColumnId("world")
-      setColor("blue")
-      setIsMainstream(0)
-      setPriorityWeight(0)
-      setTags("")
-      setBadgeLabel("")
+      setName(""); setSubdomain(""); setType(""); setColumnId("world"); setColor("blue")
+      setIsMainstream(0); setPriorityWeight(0); setTags(""); setBadgeLabel("")
     }
   }
 
-  const inputClass = "w-full px-3 py-2 rounded-lg bg-primary/5 border border-primary/10 outline-none focus:border-primary/30 transition-colors text-sm"
-  const labelClass = "text-xs font-medium op-60 mb-1 block"
+  const inputClass = "w-full px-3 py-2 rounded-md bg-white/[0.03] border border-white/8 outline-none focus:border-white/20 transition-all duration-300 text-sm placeholder:op-25"
+  const labelClass = "text-[11px] op-40 mb-1.5 block tracking-wide"
 
   return (
-    <motion.form
+    <form
       onSubmit={handleSubmit}
-      className="p-5 rounded-2xl bg-primary/5 border border-primary/10"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      key={editingSource ? "editing" : "adding"}
+      className="p-6 rounded-xl border border-white/8 bg-white/[0.02]"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold flex items-center gap-2 text-primary">
-          {editingSource ? (
-            <><span className="i-ph:pencil-simple-duotone text-lg" /> 編輯來源: {editingSource.name}</>
-          ) : (
-            <><span className="i-ph:plus-circle-duotone text-lg" /> 新增 Buzzing 來源</>
-          )}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-sm font-medium op-70">
+          {editingSource ? `編輯：${editingSource.name}` : "新增來源"}
         </h2>
-        {editingSource && (
-          <button
-            type="button"
-            onClick={onCancelEdit}
-            className="text-xs px-2 py-1 bg-neutral/10 hover:bg-neutral/20 rounded transition-colors"
+        <button
+          type="button"
+          onClick={onCancelEdit}
+          className="text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+        >
+          取消
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+          <label className={labelClass}>名稱</label>
+          <input className={inputClass} placeholder="BBC" value={name} onChange={e => setName(e.target.value)} required />
+        </div>
+        <div>
+          <label className={labelClass}>Subdomain</label>
+          <div className="flex items-center gap-2">
+            <input className={inputClass} placeholder="bbc" value={subdomain} onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required />
+            <span className="text-[10px] op-20 whitespace-nowrap">.buzzing.cc</span>
+          </div>
+        </div>
+        <div>
+          <label className={labelClass}>模式</label>
+          <select className={inputClass} value={type} onChange={e => setType(e.target.value)}>
+            <option value="">時間流</option>
+            <option value="hottest">熱榜</option>
+            <option value="realtime">快訊</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>區域</label>
+          <select className={inputClass} value={columnId} onChange={e => setColumnId(e.target.value)}>
+            <option value="world">國際</option>
+            <option value="china">國內</option>
+            <option value="tech">科技</option>
+            <option value="finance">財經</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Collapsible advanced section */}
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="mt-5 text-[11px] op-25 hover:op-50 transition-opacity duration-300"
+      >
+        {showAdvanced ? "收起進階設定" : "進階設定"}
+      </button>
+
+      <AnimatePresence>
+        {showAdvanced && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
           >
-            取消編輯
-          </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-4 pt-4 border-t border-white/5">
+              <div>
+                <label className={labelClass}>
+                  <input type="checkbox" className="mr-2 accent-white/50" checked={isMainstream === 1} onChange={e => setIsMainstream(e.target.checked ? 1 : 0)} />
+                  加入新聞分頁
+                </label>
+              </div>
+              <div>
+                <label className={labelClass}>排序權重</label>
+                <input type="number" className={inputClass} value={priorityWeight} onChange={e => setPriorityWeight(Number(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className={labelClass}>標籤</label>
+                <input className={inputClass} value={tags} placeholder="ai, web3" onChange={e => setTags(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelClass}>Badge</label>
+                <input className={inputClass} value={badgeLabel} placeholder="—" onChange={e => setBadgeLabel(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelClass}>顏色</label>
+                <select className={inputClass} value={color} onChange={e => setColor(e.target.value)}>
+                  {["blue", "red", "green", "orange", "gray", "teal", "indigo", "emerald", "slate"].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <CategoryPrediction type={type} isMainstream={isMainstream} tags={tags} />
+            </div>
+          </motion.div>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>顯示名稱 *</label>
-          <input
-            className={inputClass}
-            placeholder="例如：BBC"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Subdomain *</label>
-          <div className="flex items-center gap-1">
-            <input
-              className={inputClass}
-              placeholder="例如：bbc"
-              value={subdomain}
-              onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-              required
-            />
-            <span className="text-xs op-40 whitespace-nowrap">.buzzing.cc</span>
-          </div>
-        </div>
-        {/* ── A. 內容模式 ── */}
-        <div className="md:col-span-2 pt-2 border-t border-primary/10 mt-2">
-          <p className="text-xs font-semibold mb-1 op-70 flex items-center gap-1">
-            <span className="i-ph:monitor-play-duotone" />
-            內容模式
-          </p>
-          <p className="text-[10px] op-40 mb-3">只影響內容呈現方式，不直接等於新聞分頁歸屬</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className={labelClass}>模式</label>
-              <select className={inputClass} value={type} onChange={e => setType(e.target.value)}>
-                <option value="">時間流 — 按時間排列</option>
-                <option value="hottest">熱榜 — 按熱度排列</option>
-                <option value="realtime">快訊 — 24 小時快訊</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>區域分類</label>
-              <select className={inputClass} value={columnId} onChange={e => setColumnId(e.target.value)}>
-                <option value="world">國際</option>
-                <option value="china">國內</option>
-                <option value="tech">科技</option>
-                <option value="finance">財經</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>顏色</label>
-              <select className={inputClass} value={color} onChange={e => setColor(e.target.value)}>
-                {["blue", "red", "green", "orange", "gray", "teal", "indigo", "emerald", "slate"].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* ── B. 分類歸屬 ── */}
-        <div className="md:col-span-2 pt-2 border-t border-primary/10 mt-2">
-          <p className="text-xs font-semibold mb-1 op-70 flex items-center gap-1">
-            <span className="i-ph:folders-duotone" />
-            分類歸屬
-          </p>
-          <p className="text-[10px] op-40 mb-3">決定此來源出現在前台的哪些分頁，由新聞歸屬、標籤與系統規則共同決定</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className={labelClass}>
-                <input 
-                  type="checkbox" 
-                  className="mr-2" 
-                  checked={isMainstream === 1} 
-                  onChange={e => setIsMainstream(e.target.checked ? 1 : 0)} 
-                />
-                新聞分頁歸屬
-              </label>
-              <p className="text-[10px] op-40 mt-1">勾選後加入「新聞」分頁</p>
-            </div>
-            <div>
-              <label className={labelClass}>排序權重</label>
-              <input 
-                type="number" 
-                className={inputClass} 
-                value={priorityWeight} 
-                onChange={e => setPriorityWeight(Number(e.target.value) || 0)} 
-              />
-              <p className="text-[10px] op-40 mt-1">數字越大排越前面（預設 0）</p>
-            </div>
-            <div>
-              <label className={labelClass}>標籤（逗號分隔）</label>
-              <input 
-                className={inputClass} 
-                value={tags} 
-                placeholder="例如: ai, web3"
-                onChange={e => setTags(e.target.value)} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Badge 小標籤（可選）</label>
-              <input 
-                className={inputClass} 
-                value={badgeLabel} 
-                placeholder="留空則不顯示右側小框"
-                onChange={e => setBadgeLabel(e.target.value)} 
-              />
-              <p className="text-[10px] op-40 mt-1">留空則不顯示右側小框</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── 即時歸屬預覽 ── */}
-        <div className="md:col-span-2 pt-3 mt-1">
-          <CategoryPrediction type={type} isMainstream={isMainstream} tags={tags} />
-        </div>
-      </div>
+      </AnimatePresence>
 
       {error && (
-        <p className="mt-3 text-sm text-red-500">
+        <p className="mt-4 text-[11px] text-red-400/70">
           {(error as any)?.data?.message || error.message}
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isLoading || !name.trim() || !subdomain.trim()}
-        className={$(
-          "mt-4 px-5 py-2 rounded-lg text-sm font-medium transition-all",
-          "bg-primary/15 hover:bg-primary/25",
-          (isLoading || !name.trim() || !subdomain.trim()) && "op-40 cursor-not-allowed",
-        )}
-      >
-        {isLoading ? (
-          <span className="flex items-center gap-2">
-            <span className="i-ph:circle-dashed-duotone animate-spin" />
-            新增中...
-          </span>
-        ) : (
-          <span className="flex items-center gap-2">
-            <span className="i-ph:plus-bold" />
-            新增來源
-          </span>
-        )}
-      </button>
-    </motion.form>
+      <div className="flex justify-end mt-6">
+        <button
+          type="submit"
+          disabled={isLoading || !name.trim() || !subdomain.trim()}
+          className={$(
+            "px-5 py-2 rounded-md text-xs font-medium transition-all duration-300",
+            "border border-white/10 hover:border-white/25 hover:bg-white/5",
+            (isLoading || !name.trim() || !subdomain.trim()) && "op-20 cursor-not-allowed",
+          )}
+        >
+          {isLoading ? "處理中..." : editingSource ? "儲存" : "新增"}
+        </button>
+      </div>
+    </form>
   )
 }
 
-// ── 來源列表行 ──
+// ────────────────────────────────────────────────
+// Dynamic Source Row (hover-reveal actions)
+// ────────────────────────────────────────────────
 function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
   source: AdminSource
   onToggle: () => void
@@ -860,117 +847,87 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
   onEdit: () => void
   isUpdating: boolean
 }) {
-  const columnLabels: Record<string, string> = {
-    world: "國際",
-    china: "國內",
-    tech: "科技",
-    finance: "財經",
-  }
-
-  const typeLabels: Record<string, string> = {
-    hottest: "熱榜",
-    realtime: "快訊",
-    "": "時間流",
-  }
-
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+    <div
       className={$(
-        "flex items-center gap-4 p-4 rounded-xl transition-all",
-        "border border-primary/10",
-        source.is_active ? "bg-primary/5" : "bg-neutral/5 op-60",
+        "group flex items-center gap-4 px-4 py-3 transition-all duration-300",
+        "bg-white/[0.02] hover:bg-white/[0.05]",
+        !source.is_active && "op-35",
       )}
     >
-      {/* Icon */}
       <div
-        className="w-10 h-10 rounded-full bg-cover bg-center flex-shrink-0 border-2 border-primary/10"
-        style={{
-          backgroundImage: `url(https://${source.subdomain}.buzzing.cc/icon.png)`,
-        }}
+        className="w-8 h-8 rounded-full bg-cover bg-center flex-shrink-0 border border-white/8"
+        style={{ backgroundImage: `url(https://${source.subdomain}.buzzing.cc/icon.png)` }}
       />
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold">{source.name}</span>
-          <span className={$("text-xs px-1.5 py-0.5 rounded", `bg-${source.color}-500/15 color-${source.color}-500`)}>
-            {source.subdomain}
-          </span>
-          <span className="text-xs op-50">
-            {columnLabels[source.column_id] || source.column_id}
-          </span>
-          <span className="text-xs op-50">
-            · {typeLabels[source.type] || source.type}
-          </span>
-          {source.is_mainstream_media === 1 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 font-medium">新聞</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium op-85 truncate">{source.name}</span>
+          <span className="text-[10px] op-25 font-mono">{source.subdomain}</span>
+          {/* Exception-only badges */}
+          {!source.is_active && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-50">停用</span>
           )}
-          {source.badge_label && source.badge_label.trim().toLowerCase() !== source.name.toLowerCase() && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-600 font-medium whitespace-nowrap">Badge: {source.badge_label}</span>
+          {source.is_mainstream_media === 1 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-30">新聞</span>
           )}
           {source.priority_weight !== undefined && source.priority_weight !== 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-600 font-medium whitespace-nowrap">權重 {source.priority_weight}</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-25 font-mono">{source.priority_weight}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="text-xs op-40">
-            ID: {source.id}
-          </div>
+        {/* Secondary info: hover-reveal */}
+        <div className="flex items-center gap-2 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="text-[10px] op-25 font-mono">{source.id}</span>
           <SourceTagsBadges tags={source.tags} name={source.name} subdomain={source.subdomain} />
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Toggle Active */}
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={isUpdating}
-          className={$(
-            "relative w-11 h-6 rounded-full transition-colors cursor-pointer",
-            source.is_active ? "bg-green-500/30" : "bg-neutral-400/20",
-          )}
-          title={source.is_active ? "停用" : "啟用"}
-        >
-          <span
-            className={$(
-              "absolute top-0.5 w-5 h-5 rounded-full transition-all",
-              source.is_active ? "left-5.5 bg-green-500" : "left-0.5 bg-neutral-400",
-            )}
-          />
-        </button>
-
-        {/* Edit */}
+      {/* Actions: hover-reveal */}
+      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
         <button
           type="button"
           onClick={onEdit}
           disabled={isUpdating}
-          className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-primary/60 hover:bg-primary/10 hover:text-primary transition-colors text-xs font-medium"
+          className="p-1.5 rounded-md hover:bg-white/8 transition-colors duration-200 op-50 hover:op-90"
+          title="編輯"
         >
-          <span className="i-ph:pencil-simple-duotone text-base" />
-          編輯
+          <span className="i-ph:pencil-simple text-sm" />
         </button>
-
-        {/* Delete */}
         <button
           type="button"
           onClick={onDelete}
           disabled={isUpdating}
-          className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-500 transition-colors text-xs font-medium"
+          className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors duration-200 op-30 hover:op-70 hover:text-red-400"
+          title="刪除"
         >
-          <span className="i-ph:trash-duotone text-base" />
-          刪除
+          <span className="i-ph:trash text-sm" />
         </button>
       </div>
-    </motion.div>
+
+      {/* Toggle: always visible but minimal */}
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={isUpdating}
+        className={$(
+          "relative w-8 h-[18px] rounded-full transition-all duration-300 cursor-pointer flex-shrink-0",
+          source.is_active ? "bg-white/15" : "bg-white/5",
+        )}
+      >
+        <span
+          className={$(
+            "absolute top-[2px] w-[14px] h-[14px] rounded-full transition-all duration-300",
+            source.is_active ? "left-[15px] bg-white/70" : "left-[2px] bg-white/25",
+          )}
+        />
+      </button>
+    </div>
   )
 }
 
+// ────────────────────────────────────────────────
+// Category Preview (collapsible per bucket)
+// ────────────────────────────────────────────────
 function CategoryPreview() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["source-categories-preview"],
@@ -984,77 +941,105 @@ function CategoryPreview() {
 
   if (isLoading) {
     return (
-      <div className="mt-12 pt-8 border-t border-primary/10">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <span className="i-ph:eye-duotone" />
-          即時分類預覽
-        </h2>
-        <div className="flex justify-center py-8">
-          <span className="i-ph:circle-dashed-duotone text-2xl animate-spin op-30" />
+      <section className="mb-14">
+        <h2 className="text-sm font-medium op-60 tracking-wide mb-6">分類預覽</h2>
+        <div className="flex justify-center py-12">
+          <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
         </div>
-      </div>
+      </section>
     )
   }
 
-  if (error || !data || !data.categories) {
+  if (error || !data?.categories) {
     return (
-      <div className="mt-12 pt-8 border-t border-primary/10">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <span className="i-ph:eye-duotone" />
-          即時分類預覽
-        </h2>
-        <div className="text-red-500 text-sm">載入預覽失敗，請檢查 API 狀態。</div>
-      </div>
+      <section className="mb-14">
+        <h2 className="text-sm font-medium op-60 tracking-wide mb-6">分類預覽</h2>
+        <p className="text-[11px] op-30">載入失敗</p>
+      </section>
     )
   }
 
   const { categories, metadata } = data
 
-  const renderList = (title: string, ids: string[]) => (
-    <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
-      <h3 className="font-semibold text-sm mb-3 flex items-center justify-between">
-        {title}
-        <span className="op-50 text-xs font-normal">({ids.length})</span>
-      </h3>
+  return (
+    <section className="mb-14">
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="text-sm font-medium op-60 tracking-wide">分類預覽</h2>
+      </div>
+      <p className="text-[11px] op-25 mb-6">反映資料庫排序推導後的最終分頁歸屬</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-8">
+        <PreviewBucket title="新聞" ids={categories.news || []} metadata={metadata} />
+        <PreviewBucket title="全部" ids={categories.more || []} metadata={metadata} />
+        <PreviewBucket title="熱榜" ids={categories.hottest || []} metadata={metadata} />
+        <PreviewBucket title="快訊" ids={categories.realtime || []} metadata={metadata} />
+      </div>
+    </section>
+  )
+}
+
+function PreviewBucket({ title, ids, metadata }: { title: string, ids: string[], metadata: Record<string, any> }) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? ids : ids.slice(0, PREVIEW_COLLAPSED_COUNT)
+  const hiddenCount = ids.length - PREVIEW_COLLAPSED_COUNT
+
+  return (
+    <div className="rounded-lg border border-white/5 bg-white/[0.015] overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5">
+        <span className="text-xs font-medium op-60">{title}</span>
+        <span className="text-[10px] op-20 font-mono">{ids.length}</span>
+      </div>
+
       {ids.length === 0 ? (
-        <div className="text-xs op-40 text-center py-4">無資料</div>
+        <div className="text-[10px] op-20 text-center py-6">空</div>
       ) : (
-        <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-          {ids.map((id: string) => {
-            const m = metadata?.[id]
-            return (
-              <div key={id} className="flex items-center gap-2 bg-neutral/5 p-2 rounded-lg text-xs">
-                <div className="w-5 h-5 rounded-full bg-cover bg-center flex-shrink-0" 
-                     style={{ backgroundImage: `url(${m?.isDynamic ? m.home.replace(/\/$/, '') + '/icon.png' : `/icons/${id.split('-')[0]}.png`})` }} />
-                <span className="font-medium truncate flex-1">{m?.name || id}</span>
-                {m?.isDynamic && <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">動態</span>}
-              </div>
-            )
-          })}
+        <div className="relative">
+          <div className="flex flex-col">
+            {visible.map((id: string) => {
+              const m = metadata?.[id]
+              return (
+                <div key={id} className="flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-white/[0.03] transition-colors duration-200">
+                  <div
+                    className="w-4 h-4 rounded-full bg-cover bg-center flex-shrink-0"
+                    style={{ backgroundImage: `url(${m?.isDynamic ? m.home.replace(/\/$/, '') + '/icon.png' : `/icons/${id.split('-')[0]}.png`})` }}
+                  />
+                  <span className="truncate flex-1 op-60">{m?.name || id}</span>
+                  {m?.isDynamic && <span className="text-[8px] op-20">dyn</span>}
+                </div>
+              )
+            })}
+          </div>
+
+          {!expanded && hiddenCount > 0 && (
+            <>
+              <div className="absolute bottom-6 left-0 right-0 h-8 bg-gradient-to-t from-base to-transparent pointer-events-none" />
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="w-full py-2 text-center text-[10px] op-20 hover:op-50 transition-opacity duration-300"
+              >
+                +{hiddenCount}
+              </button>
+            </>
+          )}
+          {expanded && hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="w-full py-2 text-center text-[10px] op-20 hover:op-50 transition-opacity duration-300"
+            >
+              收合
+            </button>
+          )}
         </div>
       )}
     </div>
   )
-
-  return (
-    <div className="mt-12 pt-8 border-t border-primary/10">
-      <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-        <span className="i-ph:eye-duotone" />
-        即時分類預覽
-      </h2>
-      <p className="text-sm op-50 mb-6">呈現由資料庫排序推導出的最終分類狀態，此區塊反應了當下前台的分類分發邏輯。</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-12">
-        {renderList("新聞", categories.news || [])}
-        {renderList("全部", categories.more || [])}
-        {renderList("熱榜", categories.hottest || [])}
-        {renderList("快訊", categories.realtime || [])}
-      </div>
-    </div>
-  )
 }
 
-// ── 即時歸屬預覽（表單內） ──
+// ────────────────────────────────────────────────
+// Inline prediction (form)
+// ────────────────────────────────────────────────
 function CategoryPrediction({ type, isMainstream, tags }: { type: string, isMainstream: number, tags: string }) {
   const parsedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
   const isNews = isMainstream === 1 || parsedTags.includes("news")
@@ -1070,38 +1055,32 @@ function CategoryPrediction({ type, isMainstream, tags }: { type: string, isMain
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <span className="text-[11px] op-50 flex items-center gap-1">
-        <span className="i-ph:map-trifold-duotone" />
-        將出現在：
-      </span>
+      <span className="text-[10px] op-25">歸屬：</span>
       {items.map(item => (
         <span
           key={item.label}
           className={$(
-            "text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors",
-            item.active
-              ? "bg-primary/15 text-primary"
-              : "bg-neutral/10 op-30 line-through",
+            "text-[10px] px-2 py-0.5 rounded-full transition-all duration-300",
+            item.active ? "bg-white/8 op-60" : "op-15 line-through",
           )}
         >
           {item.label}
         </span>
       ))}
-      <span className="text-[9px] op-30 ml-auto">實際結果以儲存後的系統分類為準</span>
     </div>
   )
 }
 
-// ── 來源列表標籤去重渲染 ──
+// ────────────────────────────────────────────────
+// Tag badges (dedup)
+// ────────────────────────────────────────────────
 function SourceTagsBadges({ tags, name, subdomain }: { tags?: string, name: string, subdomain: string }) {
   let parsed: string[] = []
   try {
     if (tags && tags !== "[]") parsed = JSON.parse(tags)
   } catch { /* ignore */ }
-
   if (!Array.isArray(parsed)) parsed = []
 
-  // 去重：排除與 name/subdomain 相同（大小寫不敏感）的 tag
   const nameLower = name.toLowerCase()
   const subLower = subdomain.toLowerCase()
   const dedupTags = parsed.filter(t => {
@@ -1109,16 +1088,13 @@ function SourceTagsBadges({ tags, name, subdomain }: { tags?: string, name: stri
     return tl !== nameLower && tl !== subLower
   })
 
-  if (dedupTags.length === 0) {
-    return <span className="text-[10px] op-30 italic">未設定標籤</span>
-  }
+  if (dedupTags.length === 0) return null
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
       {dedupTags.map(t => (
-        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/8 text-primary/70">{t}</span>
+        <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-30">{t}</span>
       ))}
     </div>
   )
 }
-
