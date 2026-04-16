@@ -559,7 +559,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
             className="op-35 hover:op-80 transition-all duration-300 text-xs p-1"
             title="編輯屬性"
           >
-            <span className="i-ph:sliders-horizontal text-sm" />
+            <span className="i-ph:sliders-horizontal-duotone text-sm inline-block" />
           </button>
           <button
             type="button"
@@ -889,7 +889,7 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
           className="p-1.5 rounded-md hover:bg-white/8 transition-colors duration-200 op-40 hover:op-90"
           title="編輯"
         >
-          <span className="i-ph:pencil-simple text-sm" />
+          <span className="i-ph:pencil-simple-duotone text-sm inline-block" />
         </button>
         <button
           type="button"
@@ -898,7 +898,7 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
           className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors duration-200 op-25 hover:op-70 hover:text-red-400"
           title="刪除"
         >
-          <span className="i-ph:trash text-sm" />
+          <span className="i-ph:trash-duotone text-sm inline-block" />
         </button>
       </div>
 
