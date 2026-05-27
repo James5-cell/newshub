@@ -1,11 +1,11 @@
 import { refreshAllSources } from "../utils/refresh"
 
-export default defineNitroPlugin((nitroApp) => {
+export default defineNitroPlugin((_nitroApp) => {
   // Disable scheduler in serverless / worker environments (like Cloudflare Pages or Vercel)
   // Cloudflare Workers disallow calling setInterval/setTimeout in the global/initialization scope.
   if (
-    typeof globalThis.caches !== "undefined" ||
-    typeof globalThis.WebSocketPair !== "undefined" ||
+    typeof (globalThis as any).caches !== "undefined" ||
+    typeof (globalThis as any).WebSocketPair !== "undefined" ||
     process.env.CF_PAGES ||
     process.env.VERCEL
   ) {
