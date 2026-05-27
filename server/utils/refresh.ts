@@ -1,6 +1,6 @@
 import { getters } from "#/getters"
 import { getCacheTable } from "#/database/cache"
-import { getCustomSourceTable } from "#/database/source-config"
+import { getCustomSourceTable, getOverrideTable } from "#/database/source-config"
 import { getSourceStatusTable } from "#/database/status"
 import { createBuzzingGetter } from "#/sources/buzzing"
 import { sources } from "@shared/sources"
@@ -72,7 +72,9 @@ export async function refreshSource(id: string) {
 
 export async function refreshAllSources() {
   // Get all active sources: static and custom
-  const staticIds = Object.keys(sources) as string[]
+  const overrideTable = await getOverrideTable()
+  const hiddenIds = overrideTable ? await overrideTable.getHidden() : []
+  const staticIds = Object.keys(sources).filter(id => !hiddenIds.includes(id)) as string[]
 
   const customTable = await getCustomSourceTable()
   const customSources = customTable ? await customTable.getActive() : []
