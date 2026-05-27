@@ -4,6 +4,7 @@ import { getCacheTable } from "#/database/cache"
 import { getCustomSourceTable } from "#/database/source-config"
 import { createBuzzingGetter } from "#/sources/buzzing"
 import type { CacheInfo } from "#/types"
+import { refreshSource } from "#/utils/refresh"
 
 export default defineEventHandler(async (event): Promise<SourceResponse> => {
   try {
@@ -78,17 +79,12 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
     }
 
     try {
-      const newData = (await getters[id]()).slice(0, 30)
-      if (cacheTable && newData.length) {
-        if (event.context.waitUntil) event.context.waitUntil(cacheTable.set(id, newData))
-        else await cacheTable.set(id, newData)
-      }
-      logger.success(`fetch ${id} latest`)
+      const result = await refreshSource(id)
       return {
         status: "success",
         id,
-        updatedTime: now,
-        items: newData,
+        updatedTime: result.updatedTime,
+        items: result.items,
       }
     } catch (e) {
       if (cache!) {
@@ -157,18 +153,12 @@ async function handleCustomSource(event: any, id: string, latest: boolean): Prom
 
   // 動態抓取
   try {
-    const getter = createBuzzingGetter(customSource.subdomain)
-    const newData = (await getter()).slice(0, 30)
-    if (cacheTable && newData.length) {
-      if (event.context.waitUntil) event.context.waitUntil(cacheTable.set(id, newData))
-      else await cacheTable.set(id, newData)
-    }
-    logger.success(`fetch custom source ${id} (buzzing/${customSource.subdomain}) latest`)
+    const result = await refreshSource(id)
     return {
       status: "success",
       id: id as SourceID,
-      updatedTime: now,
-      items: newData,
+      updatedTime: result.updatedTime,
+      items: result.items,
     }
   } catch (e) {
     if (cache!) {

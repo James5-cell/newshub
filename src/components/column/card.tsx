@@ -1,5 +1,5 @@
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AnimatePresence, motion, useInView } from "framer-motion"
 import { useWindowSize } from "react-use"
 import { forwardRef, useImperativeHandle, useState } from "react"
@@ -52,6 +52,64 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging
 
 function NewsCard({ id, setHandleRef }: NewsCardProps) {
   const { refresh } = useRefetch()
+  const { loggedIn } = useLogin()
+  const queryClient = useQueryClient()
+  const toaster = useToast()
+
+  const { data: statusRes } = useSourcesStatus()
+  const sourceStatus = statusRes?.data?.find(s => s.id === id)
+  const userLimit = statusRes?.userLimit
+
+  const now = Date.now()
+  const resetAt = userLimit?.resetAt ?? 0
+  const count = userLimit?.count ?? 0
+  const limitReached = count >= 3 && now < resetAt
+
+  const minutesLeft = Math.ceil((resetAt - now) / 60000)
+  const refreshTooltip = loggedIn
+    ? (limitReached
+        ? `已用 3/3 次，${minutesLeft}分钟后重置`
+        : `手动刷新 (已用 ${count}/3 次)`)
+    : "刷新"
+
+  const handleSingleRefresh = async () => {
+    if (!loggedIn) {
+      refresh(id)
+      return
+    }
+
+    if (limitReached) {
+      toaster(`已达到手动刷新上限，请在 ${minutesLeft} 分钟后重置。`, { type: "warning" })
+      return
+    }
+
+    try {
+      toaster("正在强制刷新板块...", { type: "info" })
+      const res = await myFetch<any>("/refresh", {
+        method: "POST",
+        body: { source: id },
+        headers: {
+          Authorization: `Bearer ${safeParseString(localStorage.getItem("jwt"))}`
+        }
+      })
+      
+      if (res?.rateLimit) {
+        queryClient.setQueryData(["sources-status", loggedIn], (old: any) => {
+          if (!old) return old
+          return { ...old, userLimit: res.rateLimit }
+        })
+      }
+
+      toaster("刷新成功", { type: "success" })
+      cacheSources.delete(id)
+      await queryClient.refetchQueries({
+        queryKey: ["source", id]
+      })
+    } catch (err: any) {
+      toaster(err.message || "刷新失败", { type: "error" })
+    }
+  }
+
   const { data: catData } = useSourceCategories()
   const meta = catData?.metadata?.[id]
 
@@ -144,21 +202,30 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
                 <span className="text-[10px] text-gray-500 truncate flex-shrink-0">{title}</span>
               )}
             </div>
-            <span className="text-[10px] text-gray-500">
+            <span className="text-[10px] text-gray-500 flex items-center gap-1">
               <UpdatedTime isError={isError} updatedTime={data?.updatedTime} />
+              {sourceStatus?.status === "failed" && (
+                <span
+                  title={sourceStatus.error_message || "更新失败"}
+                  className="i-ph:warning-duotone text-red-400 flex-shrink-0 cursor-help"
+                />
+              )}
             </span>
           </div>
         </div>
         <div className="flex gap-1 items-center text-sm flex-shrink-0">
           <button
             type="button"
+            title={refreshTooltip}
+            disabled={loggedIn && limitReached}
             className={$(
               "btn p-1 rounded transition-all duration-200",
               isFetching
                 ? "animate-spin i-ph:circle-dashed-duotone op-50"
                 : "i-ph:arrow-counter-clockwise-duotone op-30 hover:op-70",
+              loggedIn && limitReached && "op-10 cursor-not-allowed hover:op-10"
             )}
-            onClick={() => refresh(id)}
+            onClick={handleSingleRefresh}
           />
           <button
             type="button"

@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36">
   <defs>
-    <linearGradient id="faviconLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="navLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FF3B30" />
       <stop offset="100%" stop-color="#E53935" />
     </linearGradient>
   </defs>
   <!-- Background Rounded Square (border radius ~22%) -->
-  <rect width="512" height="512" rx="112" fill="url(#faviconLogoGrad)" />
+  <rect width="512" height="512" rx="112" fill="url(#navLogoGrad)" />
   
   <!-- Radiating Arcs -->
   <g fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round">

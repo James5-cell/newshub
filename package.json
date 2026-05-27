@@ -5,11 +5,11 @@
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "author": {
-    "url": "https://postsoma-2050.com",
+    "url": "https://205077.xyz",
     "email": "",
     "name": "postsoma-2050"
   },
-  "homepage": "https://postsoma-2050.com",
+  "homepage": "https://205077.xyz",
   "scripts": {
     "dev": "npm run presource && vite dev",
     "build": "npm run presource && vite build",

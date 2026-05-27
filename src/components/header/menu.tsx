@@ -17,7 +17,22 @@ export function Menu() {
                   style={{ backgroundImage: `url(${userInfo.avatar}&s=24)` }}
                 />
               )
-            : <button type="button" className="btn i-si:more-muted-horiz-circle-duotone" />
+            : (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-white/70 hover:text-white transition-colors cursor-pointer"
+                >
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+              )
         }
       </span>
       {shown && (
@@ -57,14 +72,27 @@ export function Menu() {
 
             {/* Section: External links */}
             <div className="p-1.5">
-              <li
-                onClick={() => window.open("https://postsoma-2050.com")}
-                className="group cursor-pointer [&_*]:cursor-pointer"
+              <a
+                href="https://postsoma-2050.website/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
               >
-                <span className="i-ph:archive-duotone inline-block op-50" />
-                <span className="flex-1">postsoma-2050</span>
-                <span className="text-[10px] text-white/30">Archive</span>
-              </li>
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M9 3v18M3 9h6M3 15h6"/>
+                </svg>
+                postsoma-2050
+              </a>
             </div>
           </motion.div>
         </div>

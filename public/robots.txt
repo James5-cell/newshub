@@ -1,2 +1,47 @@
+# robots.txt for NewsHub - postsoma-2050
+# Optimized for Search Engine Optimization (SEO) & Answer Engine Optimization (AEO)
+
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api
+
+# AEO Optimization: Allow AI/LLM Search Agents to crawl news content
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: facebookexternalhit
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+# Hostname and Sitemap Reference
+Host: https://205077.xyz
+Sitemap: https://205077.xyz/sitemap.xml
