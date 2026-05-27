@@ -1,8 +1,15 @@
 import { refreshAllSources } from "../utils/refresh"
 
 export default defineNitroPlugin((nitroApp) => {
-  if (process.env.CF_PAGES) {
-    logger.info("CF Pages environment detected, scheduler plugin disabled.")
+  // Disable scheduler in serverless / worker environments (like Cloudflare Pages or Vercel)
+  // Cloudflare Workers disallow calling setInterval/setTimeout in the global/initialization scope.
+  if (
+    typeof globalThis.caches !== "undefined" ||
+    typeof globalThis.WebSocketPair !== "undefined" ||
+    process.env.CF_PAGES ||
+    process.env.VERCEL
+  ) {
+    logger.info("Serverless/Cloudflare environment detected, scheduler plugin disabled.")
     return
   }
 
