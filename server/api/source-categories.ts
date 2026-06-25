@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
   typeSafeObjectEntries(sources).forEach(([idStr, s]) => {
     const id = idStr as string
     const ov = overrideMap.get(id)
-    if (ov?.is_hidden === 1) return
+    if (ov?.is_hidden === 1 || ov?.is_deleted === 1) return
 
     const weight = ov?.priority_weight ?? 0
     const bItem = { id, weight, name: s.name }
@@ -87,11 +87,12 @@ export default defineEventHandler(async (event) => {
       id: s.id,
       name: s.name,
       color: s.color || "blue",
-      home: s.home_url || `https://${s.subdomain}.buzzing.cc`,
+      home: s.home_url || (s.provider === "buzzing" ? `https://${s.subdomain}.buzzing.cc` : ""),
       title: s.badge_label || undefined,
       type: s.type,
       column_id: s.column_id,
       subdomain: s.subdomain,
+      provider: s.provider || "buzzing",
       isDynamic: true
     }
 
@@ -126,8 +127,8 @@ export default defineEventHandler(async (event) => {
     realtime: sortBucket(bucketRealtime)
   }
 
-  // We set cache headers for performance, but shorter since custom sources update frequently
-  setHeader(event, "Cache-Control", "public, max-age=60")
+  // We set cache headers for performance, but no-cache for browser to allow instant updates
+  setHeader(event, "Cache-Control", "no-cache")
 
   return {
     categories,

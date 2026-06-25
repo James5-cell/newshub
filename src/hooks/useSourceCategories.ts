@@ -12,6 +12,7 @@ export interface SourceCategoryMetadata {
   title?: string
   type?: string
   subdomain?: string
+  provider?: string
   isDynamic: boolean
   column_id?: string
 }

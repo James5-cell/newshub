@@ -1,4 +1,4 @@
-import { fixedColumnIds, metadata } from "@shared/metadata"
+import { metadata } from "@shared/metadata"
 import { Link } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { currentColumnIDAtom } from "~/atoms"
@@ -58,7 +58,7 @@ export function NavBar() {
       "bg-white/[0.04] border border-white/[0.08]",
     ])}
     >
-      {fixedColumnIds.map(columnId => (
+      {(["news", "hottest", "realtime"] as const).map(columnId => (
         <Link
           key={columnId}
           to="/c/$column"

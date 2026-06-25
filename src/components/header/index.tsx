@@ -39,12 +39,25 @@ function Refresh() {
   )
 }
 
+function Search() {
+  const { toggle } = useSearchBar()
+  return (
+    <button
+      type="button"
+      title="Search (⌘K)"
+      className={$("i-ph:magnifying-glass-duotone btn")}
+      onClick={() => toggle()}
+    />
+  )
+}
+
 export function Header() {
+  const currentId = useAtomValue(currentColumnIDAtom)
   return (
     <>
       <span className="flex justify-self-start">
         <Link to="/" className="flex gap-2 items-center">
-          <svg viewBox="0 0 512 512" className="w-9 h-9 flex-shrink-0" title="logo">
+          <svg viewBox="0 0 512 512" className="w-9 h-9 flex-shrink-0" aria-label="logo">
             <defs>
               <linearGradient id="navLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#FF3B30" />
@@ -80,10 +93,41 @@ export function Header() {
           <NavBar />
         </span>
       </span>
-      <span className="justify-self-end flex gap-2 items-center text-lg op-60">
-        <GoTop />
-        <Refresh />
-        <Menu />
+      <span className="justify-self-end flex gap-4 items-center">
+        <div className="hidden md:flex items-center gap-3 text-sm font-medium mr-2">
+          <Link
+            to="/c/$column"
+            params={{ column: "focus" }}
+            className={$(
+              "transition-colors",
+              currentId === "focus"
+                ? "text-white/90 font-medium"
+                : "text-white/40 hover:text-white/70"
+            )}
+          >
+            关注
+          </Link>
+          <div className="w-[1px] h-3.5 bg-white/10" />
+          <Link
+            to="/c/$column"
+            params={{ column: "more" }}
+            className={$(
+              "transition-colors",
+              currentId === "more"
+                ? "text-white/90 font-medium"
+                : "text-white/40 hover:text-white/70"
+            )}
+          >
+            来源
+          </Link>
+        </div>
+
+        <div className="flex gap-2 items-center text-lg op-60">
+          <Search />
+          <GoTop />
+          <Refresh />
+          <Menu />
+        </div>
       </span>
     </>
   )

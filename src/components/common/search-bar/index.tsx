@@ -45,7 +45,7 @@ export function SearchBar() {
         .map(([k, source]) => ({
           id: k,
           title: source.title,
-          column: source.column ? columns[source.column].zh : "未分类",
+          column: source.column && source.column in columns ? columns[source.column as keyof typeof columns].zh : "未分类",
           name: source.name,
           pinyin: pinyin?.[k as keyof typeof pinyin] ?? "",
         })))

@@ -123,9 +123,27 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
   const home = meta?.home || staticSource?.home || customSource?.home
   const sourceType = meta?.type || staticSource?.type || customSource?.type
 
-  const iconUrl = meta
-    ? (meta.isDynamic ? `https://${meta.subdomain}.buzzing.cc/icon.png` : `/icons/${(id as string).split("-")[0]}.png`)
-    : (staticSource ? `/icons/${(id as string).split("-")[0]}.png` : (customSource ? `https://${customSource.subdomain}.buzzing.cc/icon.png` : undefined))
+  const getIconUrl = () => {
+    if (meta) {
+      if (!meta.isDynamic) return `/icons/${(id as string).split("-")[0]}.png`
+      if (meta.provider === "buzzing") return `https://${meta.subdomain}.buzzing.cc/icon.png`
+      if (meta.home) {
+        try { return `https://www.google.com/s2/favicons?domain=${new URL(meta.home).hostname}&sz=64` } catch {}
+      }
+      return ""
+    }
+    if (staticSource) return `/icons/${(id as string).split("-")[0]}.png`
+    if (customSource) {
+      if (customSource.provider === "buzzing") return `https://${customSource.subdomain}.buzzing.cc/icon.png`
+      if (customSource.home) {
+        try { return `https://www.google.com/s2/favicons?domain=${new URL(customSource.home).hostname}&sz=64` } catch {}
+      }
+      return ""
+    }
+    return ""
+  }
+
+  const iconUrl = getIconUrl()
 
   const { data, isFetching, isError } = useQuery({
     queryKey: ["source", id],

@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
 
   const hiddenIds = await table.getHidden()
   // Add caching header so frontend caches this appropriately
-  setHeader(event, "Cache-Control", "public, max-age=60")
+  setHeader(event, "Cache-Control", "no-cache")
 
   return { hiddenSourceIds: hiddenIds }
 })

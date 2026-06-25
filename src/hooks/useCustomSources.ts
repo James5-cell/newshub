@@ -7,7 +7,9 @@ import { useQuery } from "@tanstack/react-query"
 export interface CustomSourceInfo {
   id: string
   name: string
-  subdomain: string
+  subdomain?: string
+  provider?: string
+  feed_url?: string
   type?: string
   column: string
   color: string

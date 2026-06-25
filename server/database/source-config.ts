@@ -4,7 +4,9 @@ import type { Database } from "db0"
 export interface CustomSource {
   id: string
   name: string
-  subdomain: string
+  subdomain?: string
+  provider: string // 'rss' | 'buzzing' | 'rsshub'
+  feed_url: string
   type: string
   column_id: string
   color: string
@@ -59,6 +61,24 @@ export class CustomSourceTable {
     if (!colNames.includes('badge_label')) {
       await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN badge_label TEXT DEFAULT '';`).run()
     }
+    if (!colNames.includes('provider')) {
+      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN provider TEXT DEFAULT 'rss';`).run()
+    }
+    if (!colNames.includes('feed_url')) {
+      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN feed_url TEXT DEFAULT '';`).run()
+    }
+
+    // Migrate existing Buzzing sources
+    try {
+      await this.db.prepare(`
+        UPDATE custom_sources
+        SET provider = 'buzzing',
+            feed_url = 'https://' || subdomain || '.buzzing.cc/feed.json'
+        WHERE (provider = 'rss' OR provider IS NULL) AND feed_url = '' AND subdomain != '';
+      `).run()
+    } catch (err) {
+      logger.error("Failed to migrate custom_sources feed_url/provider values", err)
+    }
 
     logger.success(`init/migrate custom_sources table`)
   }
@@ -88,12 +108,14 @@ export class CustomSourceTable {
   async create(source: Omit<CustomSource, "created_at" | "updated_at">) {
     const now = Date.now()
     await this.db.prepare(
-      `INSERT INTO custom_sources (id, name, subdomain, type, column_id, color, is_active, interval_ms, home_url, is_mainstream_media, priority_weight, tags, badge_label, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO custom_sources (id, name, subdomain, provider, feed_url, type, column_id, color, is_active, interval_ms, home_url, is_mainstream_media, priority_weight, tags, badge_label, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       source.id,
       source.name,
-      source.subdomain,
+      source.subdomain || "",
+      source.provider || "rss",
+      source.feed_url || "",
       source.type || "",
       source.column_id || "world",
       source.color || "blue",
@@ -116,6 +138,8 @@ export class CustomSourceTable {
 
     if (source.name !== undefined) { fields.push("name = ?"); values.push(source.name) }
     if (source.subdomain !== undefined) { fields.push("subdomain = ?"); values.push(source.subdomain) }
+    if (source.provider !== undefined) { fields.push("provider = ?"); values.push(source.provider) }
+    if (source.feed_url !== undefined) { fields.push("feed_url = ?"); values.push(source.feed_url) }
     if (source.type !== undefined) { fields.push("type = ?"); values.push(source.type) }
     if (source.column_id !== undefined) { fields.push("column_id = ?"); values.push(source.column_id) }
     if (source.color !== undefined) { fields.push("color = ?"); values.push(source.color) }
@@ -169,6 +193,7 @@ export interface SourceOverride {
   priority_weight: number
   tags?: string // JSON array string
   badge_label?: string
+  is_deleted?: number
 }
 
 export class SourceOverrideTable {
@@ -204,6 +229,9 @@ export class SourceOverrideTable {
     if (!colNames.includes('badge_label')) {
       await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN badge_label TEXT DEFAULT NULL;`).run()
     }
+    if (!colNames.includes('is_deleted')) {
+      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN is_deleted INTEGER DEFAULT 0;`).run()
+    }
 
     logger.success(`init/migrate source_overrides table`)
   }
@@ -218,10 +246,37 @@ export class SourceOverrideTable {
 
   async getHidden(): Promise<string[]> {
     const res = await this.db.prepare(
-      `SELECT source_id FROM source_overrides WHERE is_hidden = 1`,
+      `SELECT source_id FROM source_overrides WHERE is_hidden = 1 OR is_deleted = 1`,
     ).all() as any
     const rows = (res.results ?? res) as { source_id: string }[]
     return rows ? rows.map(r => r.source_id) : []
+  }
+
+  async setDeleted(source_id: string, is_deleted: number) {
+    const now = Date.now()
+    await this.db.prepare(`
+      INSERT INTO source_overrides (source_id, is_hidden, is_deleted, created_at, updated_at)
+      VALUES (?, 0, ?, ?, ?)
+      ON CONFLICT(source_id) DO UPDATE SET
+        is_deleted = excluded.is_deleted,
+        updated_at = excluded.updated_at
+    `).run(source_id, is_deleted, now, now)
+    logger.success(`setDeleted source override: ${source_id} (deleted: ${is_deleted})`)
+  }
+
+  async setDeletedBulk(source_ids: string[], is_deleted: number) {
+    const now = Date.now()
+    const stmt = this.db.prepare(`
+      INSERT INTO source_overrides (source_id, is_hidden, is_deleted, created_at, updated_at)
+      VALUES (?, 0, ?, ?, ?)
+      ON CONFLICT(source_id) DO UPDATE SET
+        is_deleted = excluded.is_deleted,
+        updated_at = excluded.updated_at
+    `)
+    for (const id of source_ids) {
+      await stmt.run(id, is_deleted, now, now)
+    }
+    logger.success(`bulk setDeleted source overrides for ${source_ids.length} items (deleted: ${is_deleted})`)
   }
 
   async upsert(source_id: string, is_hidden: number, traits?: { is_mainstream_media?: number, priority_weight?: number, tags?: string | null, badge_label?: string | null }) {

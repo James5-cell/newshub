@@ -26,12 +26,36 @@ export default defineEventHandler(async (event) => {
   if (method === "PUT") {
     assertAdmin(event)
     const body = await readBody(event).catch(() => null)
-    if (!body || !body.id || typeof body.is_hidden !== 'number') {
-      throw createError({ statusCode: 400, message: "id and is_hidden are required in body" })
-    }
-
+    
     const table = await getOverrideTable()
     if (!table) throw createError({ statusCode: 500, message: "Database unavailable" })
+
+    // Bulk override action
+    if (body && body.action === "bulk" && Array.isArray(body.ids)) {
+      if (typeof body.is_hidden === 'number') {
+        for (const id of body.ids) {
+          await table.upsert(id, body.is_hidden)
+        }
+        return { success: true, count: body.ids.length, is_hidden: body.is_hidden }
+      }
+      if (typeof body.is_deleted === 'number') {
+        await table.setDeletedBulk(body.ids, body.is_deleted)
+        return { success: true, count: body.ids.length, is_deleted: body.is_deleted }
+      }
+    }
+
+    if (!body || !body.id) {
+      throw createError({ statusCode: 400, message: "id is required in body" })
+    }
+
+    if (body.is_deleted !== undefined) {
+      await table.setDeleted(body.id, Number(body.is_deleted))
+      return { success: true, id: body.id, is_deleted: body.is_deleted }
+    }
+
+    if (typeof body.is_hidden !== 'number') {
+      throw createError({ statusCode: 400, message: "id and is_hidden are required in body" })
+    }
 
     // Parse traits safely
     let tags: string | undefined

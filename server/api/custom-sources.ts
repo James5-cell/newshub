@@ -14,11 +14,13 @@ export default defineEventHandler(async () => {
       id: s.id,
       name: s.name,
       subdomain: s.subdomain,
+      provider: s.provider,
+      feed_url: s.feed_url,
       type: s.type || undefined,
       column: s.column_id,
       color: s.color || "blue",
       interval: s.interval_ms || 600000,
-      home: s.home_url || `https://${s.subdomain}.buzzing.cc/`,
+      home: s.home_url || (s.provider === "buzzing" ? `https://${s.subdomain}.buzzing.cc/` : ""),
       title: s.name,
     }))
   } catch (e: any) {

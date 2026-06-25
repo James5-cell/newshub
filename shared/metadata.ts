@@ -28,7 +28,7 @@ export const columns = {
     zh: "新聞",
   },
   more: {
-    zh: "更多",
+    zh: "来源",
   },
 } as const
 
@@ -55,12 +55,12 @@ export const metadata: Metadata = typeSafeObjectFromEntries(typeSafeObjectEntrie
     case "news":
       return [k, {
         name: v.zh,
-        sources: typeSafeObjectEntries(sources).filter(([, v]) => !v.redirect && (!v.type || v.type === "") && ["world", "china", "tech", "finance"].includes(v.column ?? "")).map(([k]) => k),
+        sources: typeSafeObjectEntries(sources).filter(([, v]) => !v.redirect && !v.type && ["world", "china", "tech", "finance"].includes(v.column ?? "")).map(([k]) => k),
       }]
     case "more":
       return [k, {
         name: v.zh,
-        sources: typeSafeObjectEntries(sources).filter(([, v]) => !v.redirect && v.column !== "focus").map(([k]) => k),
+        sources: typeSafeObjectEntries(sources).filter(([, v]) => !v.redirect && v.column !== ("focus" as any)).map(([k]) => k),
       }]
     default:
       return [k, {

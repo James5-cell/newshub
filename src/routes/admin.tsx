@@ -14,7 +14,9 @@ export const Route = createFileRoute("/admin")({
 interface AdminSource {
   id: string
   name: string
-  subdomain: string
+  subdomain?: string
+  provider?: string
+  feed_url?: string
   type: string
   column_id: string
   color: string
@@ -32,7 +34,7 @@ interface AdminSource {
 const STATIC_COLLAPSED_COUNT = 8
 const PREVIEW_COLLAPSED_COUNT = 5
 
-function getAuthHeaders() {
+function getAuthHeaders(): Record<string, string> {
   const jwt = safeParseString(localStorage.getItem("jwt"))
   return jwt ? { Authorization: `Bearer ${jwt}` } : {}
 }
@@ -77,6 +79,7 @@ function AdminPage() {
       refetch()
       queryClient.invalidateQueries({ queryKey: ["custom-sources"] })
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories"] })
     },
   })
 
@@ -105,6 +108,7 @@ function AdminPage() {
         return old.map(s => s.id === variables.id ? { ...s, ...variables } : s)
       })
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories"] })
     },
     onSettled: () => {
       setUpdatingDynamicId(null)
@@ -130,6 +134,7 @@ function AdminPage() {
       })
       refetch()
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories"] })
     },
   })
 
@@ -280,11 +285,13 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient()
   const { loggedIn } = useLogin()
   const [expanded, setExpanded] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDeletedList, setShowDeletedList] = useState(false)
 
   const { data: overrides = [], isLoading } = useQuery({
     queryKey: ["source-overrides-admin"],
     queryFn: async () => {
-      const res: { source_id: string, is_hidden: number, is_mainstream_media?: number, priority_weight?: number, tags?: string, badge_label?: string }[] = await myFetch("/admin/source-overrides", {
+      const res: { source_id: string, is_hidden: number, is_mainstream_media?: number, priority_weight?: number, tags?: string, badge_label?: string, is_deleted?: number }[] = await myFetch("/admin/source-overrides", {
         headers: getAuthHeaders(),
       })
       return res
@@ -303,10 +310,36 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
         column_id: s.column,
         type: s.type,
         is_active: override?.is_hidden === 1 ? 0 : 1,
+        is_deleted: override?.is_deleted === 1 ? 1 : 0,
         override,
       }
     })
   }, [overrides])
+
+  const activeStaticSources = useMemo(() => {
+    return staticSourcesList.filter(s => s.is_deleted === 0)
+  }, [staticSourcesList])
+
+  const deletedStaticSources = useMemo(() => {
+    return staticSourcesList.filter(s => s.is_deleted === 1)
+  }, [staticSourcesList])
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleSelectAll = (ids: string[]) => {
+    setSelectedIds(new Set(ids))
+  }
+
+  const handleClearSelect = () => {
+    setSelectedIds(new Set())
+  }
 
   const [savingId, setSavingId] = useState<string | null>(null)
 
@@ -345,22 +378,155 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
         return Array.from(hiddenSet)
       })
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories"] })
     },
     onSettled: () => {
       setSavingId(null)
     },
   })
 
-  const visibleSources = expanded ? staticSourcesList : staticSourcesList.slice(0, STATIC_COLLAPSED_COUNT)
-  const hiddenCount = staticSourcesList.length - STATIC_COLLAPSED_COUNT
+  const deleteStaticMutation = useMutation({
+    mutationFn: async ({ id, is_deleted }: { id: string, is_deleted: number }) => {
+      return await myFetch("/admin/source-overrides", {
+        method: "PUT",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ id, is_deleted }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["source-overrides-admin"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+      queryClient.invalidateQueries({ queryKey: ["source-overrides"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories"] })
+    }
+  })
+
+  const bulkMutation = useMutation({
+    mutationFn: async (payload: { ids: string[], is_hidden?: number, is_deleted?: number }) => {
+      return await myFetch("/admin/source-overrides", {
+        method: "PUT",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "bulk",
+          ...payload
+        })
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["source-overrides-admin"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
+      queryClient.invalidateQueries({ queryKey: ["source-overrides"] })
+      queryClient.invalidateQueries({ queryKey: ["source-categories"] })
+      setSelectedIds(new Set())
+    }
+  })
+
+  const visibleSources = expanded ? activeStaticSources : activeStaticSources.slice(0, STATIC_COLLAPSED_COUNT)
+  const hiddenCount = activeStaticSources.length - STATIC_COLLAPSED_COUNT
 
   return (
     <section className="mb-14">
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-sm font-medium op-60 tracking-wide">靜態來源</h2>
-        <span className="text-[10px] op-25">{staticSourcesList.length} 項</span>
+        <span className="text-[10px] op-25">{activeStaticSources.length} 項啟用</span>
       </div>
-      <p className="text-[11px] op-25 mb-6">權重越大排越前。訪客可在首頁拖曳自訂順序（僅本機）。</p>
+      <p className="text-[11px] op-25 mb-4">權重越大排越前。訪客可在首頁拖曳自訂順序（僅本機）。</p>
+
+      {/* Bulk Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 bg-white/[0.015] border border-white/5 rounded-xl p-3.5">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-medium text-white/70">批次操作</span>
+          {selectedIds.size > 0 && (
+            <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white/90">已選 {selectedIds.size} 項</span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedIds.size === 0 ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSelectAll(activeStaticSources.map(s => s.id))}
+                className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/70"
+              >
+                全選
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("確定要將所有啟用中的靜態來源設為「隱藏」嗎？")) {
+                    bulkMutation.mutate({ ids: activeStaticSources.map(s => s.id), is_hidden: 1 })
+                  }
+                }}
+                className="text-[10px] px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 transition-all"
+              >
+                全部關閉
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  bulkMutation.mutate({ ids: activeStaticSources.map(s => s.id), is_hidden: 0 })
+                }}
+                className="text-[10px] px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 transition-all"
+              >
+                全部開啟
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleClearSelect}
+                className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/70"
+              >
+                取消全選
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  bulkMutation.mutate({ ids: Array.from(selectedIds), is_hidden: 0 })
+                }}
+                className="text-[10px] px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 transition-all"
+              >
+                開啟選中
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  bulkMutation.mutate({ ids: Array.from(selectedIds), is_hidden: 1 })
+                }}
+                className="text-[10px] px-2 py-1 rounded bg-amber-500/15 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 transition-all"
+              >
+                關閉選中
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`確定要將選中的 ${selectedIds.size} 個靜態來源移出您的來源庫嗎？\n(此操作為排除設定，可在下方已移除清單中還原)`)) {
+                    bulkMutation.mutate({ ids: Array.from(selectedIds), is_deleted: 1 })
+                  }
+                }}
+                className="text-[10px] px-2 py-1 rounded bg-red-500/15 hover:bg-red-500/20 border border-red-500/25 text-red-300 transition-all"
+              >
+                移除選中
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const unselected = activeStaticSources.filter(s => !selectedIds.has(s.id)).map(s => s.id)
+                  if (unselected.length === 0) return
+                  if (confirm(`確定只保留這 ${selectedIds.size} 個來源，將其餘的 ${unselected.length} 個來源全部移出您的來源庫嗎？`)) {
+                    bulkMutation.mutate({ ids: unselected, is_deleted: 1 })
+                  }
+                }}
+                className="text-[10px] px-2 py-1 rounded bg-blue-500/15 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 transition-all"
+              >
+                只保留選中
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -374,6 +540,8 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                 <StaticSourceRow
                   key={source.id}
                   source={source}
+                  selected={selectedIds.has(source.id)}
+                  onSelect={() => toggleSelect(source.id)}
                   onToggle={() => toggleMutation.mutate({
                     id: source.id,
                     is_hidden: source.is_active ? 1 : 0,
@@ -387,7 +555,12 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                     is_hidden: source.is_active ? 0 : 1,
                     ...traits,
                   })}
-                  isSaving={savingId === source.id}
+                  onDelete={() => {
+                    if (confirm(`確定要將「${source.name}」移出您的來源庫嗎？\n(移除後您仍可在下方已移除清單中還原)`)) {
+                      deleteStaticMutation.mutate({ id: source.id, is_deleted: 1 })
+                    }
+                  }}
+                  isSaving={savingId === source.id || deleteStaticMutation.isPending || bulkMutation.isPending}
                 />
               ))}
             </AnimatePresence>
@@ -417,6 +590,52 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
           )}
         </div>
       )}
+
+      {/* Deleted / Excluded Drawer Section */}
+      {!isLoading && deletedStaticSources.length > 0 && (
+        <div className="mt-8 border-t border-white/5 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowDeletedList(!showDeletedList)}
+            className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            <span className={showDeletedList ? "i-ph:caret-down-duotone" : "i-ph:caret-right-duotone"} />
+            顯示已移除的來源 ({deletedStaticSources.length})
+          </button>
+
+          <AnimatePresence>
+            {showDeletedList && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mt-3"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 bg-white/[0.01] border border-white/5 rounded-xl p-3 max-h-60 overflow-y-auto font-sans">
+                  {deletedStaticSources.map(source => (
+                    <div key={source.id} className="flex items-center justify-between p-2 rounded bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className="w-5 h-5 rounded-full bg-cover bg-center flex-shrink-0 border border-white/8"
+                          style={{ backgroundImage: `url(/icons/${source.id.split('-')[0]}.png)` }}
+                        />
+                        <span className="text-xs font-medium text-white/60 truncate">{source.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteStaticMutation.mutate({ id: source.id, is_deleted: 0 })}
+                        className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 border border-white/5 hover:border-white/20 transition-all whitespace-nowrap"
+                      >
+                        還原
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </section>
   )
 }
@@ -424,11 +643,14 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
 // ────────────────────────────────────────────────
 // Static Source Row (hover-reveal editing)
 // ────────────────────────────────────────────────
-function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
+function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected, onSelect, onDelete }: {
   source: any
   onToggle: () => void
   onUpdateTraits: (traits: any) => Promise<any>
   isSaving: boolean
+  selected: boolean
+  onSelect: () => void
+  onDelete: () => void
 }) {
   const override = source.override || {}
 
@@ -520,13 +742,21 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className={$(
-        "group relative flex flex-col transition-all duration-300",
+        "group relative flex flex-col transition-all duration-300 border-b border-white/5",
         "bg-white/[0.02] hover:bg-white/[0.05]",
         !source.is_active && "op-40",
       )}
     >
       {/* Primary row */}
       <div className="flex items-center gap-3 px-4 py-3">
+        {/* Checkbox for bulk select */}
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onSelect}
+          className="accent-white/50 cursor-pointer w-3.5 h-3.5"
+        />
+
         <div
           className="w-7 h-7 rounded-full bg-cover bg-center flex-shrink-0 border border-white/8"
           style={{ backgroundImage: `url(/icons/${source.id.split('-')[0]}.png)` }}
@@ -546,7 +776,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
             )}
             {/* Save status */}
             {saveStatus === "saving" && <span className="text-[9px] op-40 animate-pulse">...</span>}
-            {saveStatus === "saved" && <span className="text-[9px] op-30">saved</span>}
+            {saveStatus === "saved" && <span className="text-[9px] op-30 text-green-400">已儲存</span>}
             {saveStatus === "error" && <span className="text-[9px] text-red-400/60" title={errorMsg}>error</span>}
           </div>
         </div>
@@ -561,6 +791,16 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving }: {
           >
             <span className="i-ph:sliders-horizontal-duotone text-sm inline-block" />
           </button>
+          
+          <button
+            type="button"
+            onClick={onDelete}
+            className="op-35 hover:op-80 hover:text-red-400 transition-all duration-300 text-xs p-1"
+            title="從我的來源庫移除"
+          >
+            <span className="i-ph:trash-duotone text-sm inline-block" />
+          </button>
+
           <button
             type="button"
             onClick={onToggle}
@@ -658,7 +898,10 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
   error: Error | null
 }) {
   const [name, setName] = useState("")
+  const [provider, setProvider] = useState("rss")
+  const [feedUrl, setFeedUrl] = useState("")
   const [subdomain, setSubdomain] = useState("")
+  const [homeUrl, setHomeUrl] = useState("")
   const [type, setType] = useState("")
   const [columnId, setColumnId] = useState("world")
   const [color, setColor] = useState("blue")
@@ -668,10 +911,20 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
   const [badgeLabel, setBadgeLabel] = useState("")
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // Autodiscovery states
+  const [inputUrl, setInputUrl] = useState("")
+  const [discoveredFeeds, setDiscoveredFeeds] = useState<{ title: string; url: string; type: string }[]>([])
+  const [isDiscovering, setIsDiscovering] = useState(false)
+  const [discoverError, setDiscoverError] = useState("")
+
   useEffect(() => {
     if (editingSource) {
       setName(editingSource.name)
-      setSubdomain(editingSource.subdomain)
+      setProvider(editingSource.provider || "rss")
+      setFeedUrl(editingSource.feed_url || "")
+      setSubdomain(editingSource.subdomain || "")
+      setHomeUrl(editingSource.home_url || "")
+      setInputUrl(editingSource.feed_url || editingSource.home_url || "")
       setType(editingSource.type)
       setColumnId(editingSource.column_id)
       setColor(editingSource.color)
@@ -681,15 +934,53 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
       try { setTags(JSON.parse(editingSource.tags || "[]").join(", ")) } catch { setTags("") }
       setShowAdvanced(true)
     } else {
-      setName(""); setSubdomain(""); setType(""); setColumnId("world"); setColor("blue")
+      setName(""); setProvider("rss"); setFeedUrl(""); setSubdomain(""); setHomeUrl(""); setInputUrl("")
+      setType(""); setColumnId("world"); setColor("blue")
       setIsMainstream(0); setPriorityWeight(0); setTags(""); setBadgeLabel("")
+      setDiscoveredFeeds([])
+      setDiscoverError("")
       setShowAdvanced(false)
     }
   }, [editingSource])
 
+  const handleDiscover = async () => {
+    if (!inputUrl.trim()) return
+    setIsDiscovering(true)
+    setDiscoverError("")
+    setDiscoveredFeeds([])
+    try {
+      const res = await myFetch<{ title: string; feeds: { title: string; url: string; type: string }[] }>("/admin/discover", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: inputUrl.trim() }),
+      })
+      if (res && res.feeds && res.feeds.length > 0) {
+        setDiscoveredFeeds(res.feeds)
+        if (res.title && !name) {
+          setName(res.title)
+        }
+        if (res.feeds.length === 1) {
+          setFeedUrl(res.feeds[0].url)
+        }
+      } else {
+        setDiscoverError("未找到任何訂閱源，請點擊下方進階設定手動輸入訂閱網址。")
+      }
+    } catch (err: any) {
+      setDiscoverError(err.message || "解析連結失敗，請點擊下方進階設定手動輸入網址。")
+    } finally {
+      setIsDiscovering(false)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !subdomain.trim()) return
+    if (!name.trim()) return
+    if (provider === "buzzing" && !subdomain.trim()) return
+    if (provider !== "buzzing" && !feedUrl.trim()) return
+
     const seen = new Set<string>()
     const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean).filter(t => {
       const key = t.toLowerCase()
@@ -698,13 +989,24 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
       return true
     })
     onSubmit({
-      name: name.trim(), subdomain: subdomain.trim(), type, column_id: columnId, color,
-      is_mainstream_media: isMainstream, priority_weight: priorityWeight,
-      tags: JSON.stringify(parsedTags), badge_label: badgeLabel.trim(),
+      name: name.trim(),
+      provider,
+      feed_url: feedUrl.trim(),
+      subdomain: subdomain.trim(),
+      home_url: homeUrl.trim() || (provider === "buzzing" ? `https://${subdomain.trim()}.buzzing.cc/` : inputUrl.trim()),
+      type,
+      column_id: columnId,
+      color,
+      is_mainstream_media: isMainstream,
+      priority_weight: priorityWeight,
+      tags: JSON.stringify(parsedTags),
+      badge_label: badgeLabel.trim(),
     })
     if (!editingSource) {
-      setName(""); setSubdomain(""); setType(""); setColumnId("world"); setColor("blue")
+      setName(""); setProvider("rss"); setFeedUrl(""); setSubdomain(""); setHomeUrl(""); setInputUrl("")
+      setType(""); setColumnId("world"); setColor("blue")
       setIsMainstream(0); setPriorityWeight(0); setTags(""); setBadgeLabel("")
+      setDiscoveredFeeds([])
     }
   }
 
@@ -729,34 +1031,207 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div>
-          <label className={labelClass}>名稱</label>
-          <input className={inputClass} placeholder="BBC" value={name} onChange={e => setName(e.target.value)} required />
-        </div>
-        <div>
-          <label className={labelClass}>Subdomain</label>
-          <div className="flex items-center gap-2">
-            <input className={inputClass} placeholder="bbc" value={subdomain} onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required />
-            <span className="text-[10px] op-20 whitespace-nowrap">.buzzing.cc</span>
+      <div className="flex flex-col gap-5">
+        {/* URL Feed Autodiscovery Section */}
+        {!editingSource && (
+          <div className="border-b border-white/5 pb-5">
+            <label className={labelClass}>URL (網站或 RSS/Atom 訂閱連結)</label>
+            <div className="flex gap-2">
+              <input
+                className={inputClass}
+                placeholder="例如 https://example.com 或 https://example.com/feed.xml"
+                value={inputUrl}
+                onChange={e => setInputUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={handleDiscover}
+                disabled={isDiscovering || !inputUrl.trim()}
+                className={$(
+                  "px-4 py-2 rounded-md text-xs font-medium border border-white/10 hover:border-white/25 hover:bg-white/5 whitespace-nowrap transition-all",
+                  (isDiscovering || !inputUrl.trim()) && "op-20 cursor-not-allowed"
+                )}
+              >
+                {isDiscovering ? "解析中..." : "解析與發現"}
+              </button>
+            </div>
+            {discoverError && (
+              <p className="text-[10px] text-red-400/70 mt-1">{discoverError}</p>
+            )}
+            
+            {/* Discovered feed options */}
+            {discoveredFeeds.length > 0 && (
+              <div className="mt-3 bg-white/[0.015] border border-white/5 rounded-md p-3">
+                <p className="text-[10px] op-40 mb-2 font-sans">請選擇訂閱源網址：</p>
+                <div className="flex flex-col gap-1.5 font-sans">
+                  {discoveredFeeds.map((f: any) => (
+                    <button
+                      key={f.url}
+                      type="button"
+                      onClick={() => {
+                        setFeedUrl(f.url)
+                        setProvider(f.type === "rsshub" ? "rsshub" : "rss")
+                      }}
+                      className={$(
+                        "text-left text-xs px-2.5 py-2 rounded transition-all duration-200 border flex flex-col gap-0.5",
+                        feedUrl === f.url ? "bg-white/5 border-white/20 text-white" : "bg-transparent border-white/5 text-white/50 hover:bg-white/[0.03]"
+                      )}
+                    >
+                      <span className="font-medium text-[11px] flex items-center gap-1.5">
+                        {f.title}
+                        {f.type === "rsshub" && <span className="text-[8px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-1 rounded">RSSHub</span>}
+                      </span>
+                      <span className="text-[9px] font-mono op-45 truncate block w-full">{f.url}</span>
+                      {f.note && (
+                        <span className="text-[9px] text-amber-400/80 leading-normal mt-1 border-t border-white/5 pt-1 mt-1 block">
+                          {f.note}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-        <div>
-          <label className={labelClass}>模式</label>
-          <select className={inputClass} value={type} onChange={e => setType(e.target.value)}>
-            <option value="">時間流</option>
-            <option value="hottest">熱榜</option>
-            <option value="realtime">快訊</option>
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>區域</label>
-          <select className={inputClass} value={columnId} onChange={e => setColumnId(e.target.value)}>
-            <option value="world">國際</option>
-            <option value="china">國內</option>
-            <option value="tech">科技</option>
-            <option value="finance">財經</option>
-          </select>
+        )}
+
+        <div className="flex flex-col gap-6">
+          {/* Section 1: 基礎來源 */}
+          <div>
+            <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">基礎來源</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className={labelClass}>名稱</label>
+                <input className={inputClass} placeholder="例如 BBC" value={name} onChange={e => setName(e.target.value)} required />
+              </div>
+              <div>
+                <label className={labelClass}>提供商 (Provider)</label>
+                <select className={inputClass} value={provider} onChange={e => setProvider(e.target.value)}>
+                  <option value="rss">RSS (預設)</option>
+                  <option value="buzzing">Buzzing</option>
+                  <option value="rsshub">RSSHub</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>訂閱連結 (Feed URL)</label>
+                <input
+                  className={inputClass}
+                  placeholder="例如 https://example.com/feed.xml"
+                  value={feedUrl}
+                  onChange={e => setFeedUrl(e.target.value)}
+                  disabled={provider === "buzzing"}
+                  required={provider !== "buzzing"}
+                />
+              </div>
+              {provider === "buzzing" ? (
+                <div>
+                  <label className={labelClass}>Subdomain</label>
+                  <div className="flex items-center gap-2">
+                    <input className={inputClass} placeholder="bbc" value={subdomain} onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required />
+                    <span className="text-[10px] op-20 whitespace-nowrap">.buzzing.cc</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>官方網站 (Home URL)</label>
+                  <input className={inputClass} placeholder="例如 https://example.com/" value={homeUrl} onChange={e => setHomeUrl(e.target.value)} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 2: 內容定義 */}
+          <div className="border-t border-white/5 pt-5">
+            <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">內容定義</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className={labelClass}>內容類型</label>
+                <select className={inputClass} value={type} onChange={e => {
+                  const val = e.target.value
+                  setType(val)
+                  // Reset isMainstream if not standard news
+                  if (val !== "") {
+                    setIsMainstream(0)
+                  } else {
+                    setIsMainstream(1) // Default to active news tab for news type
+                  }
+                }}>
+                  <option value="">新聞 (時間流)</option>
+                  <option value="hottest">最熱 (熱榜)</option>
+                  <option value="realtime">實時 (快訊)</option>
+                </select>
+              </div>
+              {type === "" && (
+                <div>
+                  <label className={labelClass}>分類歸屬</label>
+                  <select className={inputClass} value={columnId} onChange={e => setColumnId(e.target.value)}>
+                    <option value="world">國際</option>
+                    <option value="china">國內</option>
+                    <option value="tech">科技</option>
+                    <option value="finance">財經</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 3: 展示位置 / 分發頁面 */}
+          <div className="border-t border-white/5 pt-5">
+            <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">顯示位置 / 分發頁面</h3>
+            <div className="flex gap-3 items-center mt-2 flex-wrap">
+              {/* 全部 (Always active) */}
+              <span className="text-xs text-white/50 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded">
+                <span className="i-ph:check text-green-400" /> 全部
+              </span>
+
+              {/* 新聞 */}
+              {type === "" ? (
+                <label className={$(
+                  "text-xs flex items-center gap-1.5 border px-2.5 py-1 rounded cursor-pointer transition-all",
+                  isMainstream === 1 ? "bg-white/10 border-white/20 text-white" : "bg-white/[0.01] border-white/5 text-white/40 hover:border-white/15"
+                )}>
+                  <input
+                    type="checkbox"
+                    checked={isMainstream === 1}
+                    onChange={e => setIsMainstream(e.target.checked ? 1 : 0)}
+                    className="accent-white/50 cursor-pointer"
+                  />
+                  新聞
+                </label>
+              ) : (
+                <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
+                  <span className="i-ph:minus text-white/10" /> 新聞
+                </span>
+              )}
+
+              {/* 熱榜 */}
+              {type === "hottest" ? (
+                <span className="text-xs text-white/80 flex items-center gap-1.5 bg-white/10 border border-white/20 px-2.5 py-1 rounded">
+                  <span className="i-ph:check text-green-400" /> 熱榜
+                </span>
+              ) : (
+                <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
+                  <span className="i-ph:minus text-white/10" /> 熱榜
+                </span>
+              )}
+
+              {/* 快訊 */}
+              {type === "realtime" ? (
+                <span className="text-xs text-white/80 flex items-center gap-1.5 bg-white/10 border border-white/20 px-2.5 py-1 rounded">
+                  <span className="i-ph:check text-green-400" /> 快訊
+                </span>
+              ) : (
+                <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
+                  <span className="i-ph:minus text-white/10" /> 快訊
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] op-25 mt-2">
+              {type === "" 
+                ? "勾選「新聞」後，該來源的內容會分發至首頁的「新聞」主分頁，否則僅會出現在「分類歸屬」和「全部」分頁。" 
+                : `內容類型為「${type === "hottest" ? "熱榜" : "快訊"}」，系統將自動分發到對應頁面，無需手動配置。`}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -779,24 +1254,12 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
             className="overflow-hidden"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-4 pt-4 border-t border-white/5">
-              <div>
-                <label className={labelClass}>
-                  <input type="checkbox" className="mr-2 accent-white/50" checked={isMainstream === 1} onChange={e => setIsMainstream(e.target.checked ? 1 : 0)} />
-                  加入新聞分頁
-                </label>
-              </div>
-              <div>
-                <label className={labelClass}>排序權重</label>
-                <input type="number" className={inputClass} value={priorityWeight} onChange={e => setPriorityWeight(Number(e.target.value) || 0)} />
-              </div>
-              <div>
-                <label className={labelClass}>標籤</label>
-                <input className={inputClass} value={tags} placeholder="ai, web3" onChange={e => setTags(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelClass}>Badge</label>
-                <input className={inputClass} value={badgeLabel} placeholder="—" onChange={e => setBadgeLabel(e.target.value)} />
-              </div>
+              {provider === "buzzing" && (
+                <div>
+                  <label className={labelClass}>官方網站 (Home URL)</label>
+                  <input className={inputClass} placeholder="例如 https://example.com/" value={homeUrl} onChange={e => setHomeUrl(e.target.value)} />
+                </div>
+              )}
               <div>
                 <label className={labelClass}>顏色</label>
                 <select className={inputClass} value={color} onChange={e => setColor(e.target.value)}>
@@ -805,10 +1268,18 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div className="mt-4">
-              <CategoryPrediction type={type} isMainstream={isMainstream} tags={tags} />
+              <div>
+                <label className={labelClass}>排序權重</label>
+                <input type="number" className={inputClass} value={priorityWeight} onChange={e => setPriorityWeight(Number(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className={labelClass}>標籤 (Tags)</label>
+                <input className={inputClass} value={tags} placeholder="ai, web3" onChange={e => setTags(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelClass}>Badge 標籤</label>
+                <input className={inputClass} value={badgeLabel} placeholder="—" onChange={e => setBadgeLabel(e.target.value)} />
+              </div>
             </div>
           </motion.div>
         )}
@@ -823,11 +1294,11 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
       <div className="flex justify-end mt-6">
         <button
           type="submit"
-          disabled={isLoading || !name.trim() || !subdomain.trim()}
+          disabled={isLoading || !name.trim() || (provider === "buzzing" && !subdomain.trim()) || (provider !== "buzzing" && !feedUrl.trim())}
           className={$(
             "px-5 py-2 rounded-md text-xs font-medium transition-all duration-300",
             "border border-white/10 hover:border-white/25 hover:bg-white/5",
-            (isLoading || !name.trim() || !subdomain.trim()) && "op-20 cursor-not-allowed",
+            (isLoading || !name.trim() || (provider === "buzzing" && !subdomain.trim()) || (provider !== "buzzing" && !feedUrl.trim())) && "op-20 cursor-not-allowed",
           )}
         >
           {isLoading ? "處理中..." : editingSource ? "儲存" : "新增"}
@@ -847,6 +1318,31 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
   onEdit: () => void
   isUpdating: boolean
 }) {
+  const getAvatarUrl = () => {
+    if (source.provider === "buzzing") {
+      return `https://${source.subdomain}.buzzing.cc/icon.png`
+    }
+    if (source.home_url) {
+      try {
+        const url = new URL(source.home_url)
+        return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=64`
+      } catch {
+        // ignore
+      }
+    }
+    if (source.feed_url) {
+      try {
+        const url = new URL(source.feed_url)
+        return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=64`
+      } catch {
+        // ignore
+      }
+    }
+    return ""
+  }
+
+  const avatarUrl = getAvatarUrl()
+
   return (
     <div
       className={$(
@@ -856,14 +1352,18 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
       )}
     >
       <div
-        className="w-8 h-8 rounded-full bg-cover bg-center flex-shrink-0 border border-white/8"
-        style={{ backgroundImage: `url(https://${source.subdomain}.buzzing.cc/icon.png)` }}
-      />
+        className="w-8 h-8 rounded-full bg-cover bg-center flex-shrink-0 border border-white/8 flex items-center justify-center bg-white/[0.03]"
+        style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
+      >
+        {!avatarUrl && <span className="i-ph:rss-simple-duotone text-xs op-40" />}
+      </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium op-85 truncate">{source.name}</span>
-          <span className="text-[10px] op-25 font-mono">{source.subdomain}</span>
+          <span className="text-[10px] op-25 font-mono">
+            {source.provider === "buzzing" ? `${source.subdomain}.buzzing.cc` : (source.provider || "rss")}
+          </span>
           {/* Exception-only badges */}
           {!source.is_active && (
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 op-50">停用</span>
@@ -876,7 +1376,7 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] op-25 font-mono">{source.id}</span>
+          <span className="text-[10px] op-25 font-mono truncate block max-w-[280px] md:max-w-xs">{source.feed_url || source.id}</span>
           <SourceTagsBadges tags={source.tags} name={source.name} subdomain={source.subdomain} />
         </div>
       </div>
@@ -1035,44 +1535,11 @@ function PreviewBucket({ title, ids, metadata }: { title: string, ids: string[],
   )
 }
 
-// ────────────────────────────────────────────────
-// Inline prediction (form)
-// ────────────────────────────────────────────────
-function CategoryPrediction({ type, isMainstream, tags }: { type: string, isMainstream: number, tags: string }) {
-  const parsedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
-  const isNews = isMainstream === 1 || parsedTags.includes("news")
-  const isHottest = type === "hottest"
-  const isRealtime = type === "realtime"
-
-  const items: { label: string, active: boolean }[] = [
-    { label: "全部", active: true },
-    { label: "新聞", active: isNews },
-    { label: "熱榜", active: isHottest },
-    { label: "快訊", active: isRealtime },
-  ]
-
-  return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <span className="text-[10px] op-25">歸屬：</span>
-      {items.map(item => (
-        <span
-          key={item.label}
-          className={$(
-            "text-[10px] px-2 py-0.5 rounded-full transition-all duration-300",
-            item.active ? "bg-white/8 op-60" : "op-15 line-through",
-          )}
-        >
-          {item.label}
-        </span>
-      ))}
-    </div>
-  )
-}
 
 // ────────────────────────────────────────────────
 // Tag badges (dedup)
 // ────────────────────────────────────────────────
-function SourceTagsBadges({ tags, name, subdomain }: { tags?: string, name: string, subdomain: string }) {
+function SourceTagsBadges({ tags, name, subdomain }: { tags?: string, name: string, subdomain?: string }) {
   let parsed: string[] = []
   try {
     if (tags && tags !== "[]") parsed = JSON.parse(tags)
@@ -1080,10 +1547,10 @@ function SourceTagsBadges({ tags, name, subdomain }: { tags?: string, name: stri
   if (!Array.isArray(parsed)) parsed = []
 
   const nameLower = name.toLowerCase()
-  const subLower = subdomain.toLowerCase()
+  const subLower = subdomain ? subdomain.toLowerCase() : ""
   const dedupTags = parsed.filter(t => {
     const tl = t.toLowerCase()
-    return tl !== nameLower && tl !== subLower
+    return tl !== nameLower && (subLower ? tl !== subLower : true)
   })
 
   if (dedupTags.length === 0) return null

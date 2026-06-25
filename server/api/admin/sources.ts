@@ -37,10 +37,23 @@ export default defineEventHandler(async (event) => {
   if (method === "POST" || method === "PUT") {
     assertAdmin(event)
     const body = await readBody(event)
-    const id = body.id || (body.subdomain ? `buzzing-${body.subdomain}` : "")
+    const provider = body.provider || "rss"
+    const feed_url = body.feed_url || ""
+    const subdomain = body.subdomain || ""
+
+    const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
+    const id = body.id || (provider === "buzzing" ? `buzzing-${subdomain}` : `rss-${slugify(body.name || "")}-${Math.random().toString(36).substring(2, 6)}`)
     
-    if (method === "POST" && (!id || !body.name || !body.subdomain)) {
-      throw createError({ statusCode: 400, message: "id, name, and subdomain are required" })
+    if (method === "POST") {
+      if (!body.name) {
+        throw createError({ statusCode: 400, message: "name is required" })
+      }
+      if (provider === "buzzing" && !subdomain) {
+        throw createError({ statusCode: 400, message: "subdomain is required for buzzing provider" })
+      }
+      if (provider !== "buzzing" && !feed_url) {
+        throw createError({ statusCode: 400, message: "feed_url is required" })
+      }
     }
     if (method === "PUT" && !id) {
       throw createError({ statusCode: 400, message: "id is required for update" })
@@ -53,11 +66,10 @@ export default defineEventHandler(async (event) => {
       if (await table.getById(id)) throw createError({ statusCode: 400, message: "Source ID already exists" })
       
       const name = body.name
-      const subdomain = body.subdomain
       const type = body.type || ""
       const column_id = body.column_id || "world"
       const color = body.color || "blue"
-      const home_url = body.home_url || `https://${body.subdomain}.buzzing.cc/`
+      const home_url = body.home_url || (provider === "buzzing" ? `https://${subdomain}.buzzing.cc/` : "")
       const is_active = body.is_active !== undefined ? Number(body.is_active) : 1
       const interval_ms = Number(body.interval_ms) || 600000
 
@@ -72,7 +84,7 @@ export default defineEventHandler(async (event) => {
       } catch { tags = "[]" }
 
       await table.create({
-        id, name, subdomain, type, column_id, color, home_url, is_active, interval_ms,
+        id, name, subdomain, provider, feed_url, type, column_id, color, home_url, is_active, interval_ms,
         is_mainstream_media, priority_weight, tags, badge_label
       })
       return { success: true, id }
@@ -84,6 +96,8 @@ export default defineEventHandler(async (event) => {
       const updates: any = {}
       if (body.name !== undefined) updates.name = body.name
       if (body.subdomain !== undefined) updates.subdomain = body.subdomain
+      if (body.provider !== undefined) updates.provider = body.provider
+      if (body.feed_url !== undefined) updates.feed_url = body.feed_url
       if (body.type !== undefined) updates.type = body.type
       if (body.column_id !== undefined) updates.column_id = body.column_id
       if (body.color !== undefined) updates.color = body.color

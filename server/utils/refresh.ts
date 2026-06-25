@@ -3,7 +3,71 @@ import { getCacheTable } from "#/database/cache"
 import { getCustomSourceTable, getOverrideTable } from "#/database/source-config"
 import { getSourceStatusTable } from "#/database/status"
 import { createBuzzingGetter } from "#/sources/buzzing"
-import { sources } from "@shared/sources"
+import { rss2json } from "./rss2json"
+import type { NewsItem } from "@shared/types"
+
+export function createRSSGetter(feedUrl: string) {
+  return async (): Promise<NewsItem[]> => {
+    if (!feedUrl) {
+      throw new Error("Feed URL is empty")
+    }
+
+    // Try JSON Feed first if url ends with .json
+    if (feedUrl.endsWith(".json")) {
+      try {
+        const data = await myFetch(feedUrl) as any
+        const items = data?.items || []
+        if (items.length) {
+          return items.map((item: any) => ({
+            id: item.id || item.url || item.link,
+            title: item.title || "",
+            url: item.url || item.link || "",
+            pubDate: item.date_published || item._original_published || item.pubDate,
+          }))
+        }
+      } catch (err) {
+        logger.error(`Failed to parse feedUrl ${feedUrl} as JSON feed, fallback to XML`, err)
+      }
+    }
+
+    const rssData = await rss2json(feedUrl)
+    if (!rssData || !rssData.items || !rssData.items.length) {
+      // Fallback: try parsing raw body as JSON just in case content type is JSON without .json extension
+      try {
+        const raw = await myFetch(feedUrl)
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw
+        const items = parsed?.items || []
+        if (items.length) {
+          return items.map((item: any) => ({
+            id: item.id || item.url || item.link,
+            title: item.title || "",
+            url: item.url || item.link || "",
+            pubDate: item.date_published || item._original_published || item.pubDate,
+          }))
+        }
+      } catch {
+        // ignore
+      }
+      throw new Error(`Cannot parse RSS data or empty items for url: ${feedUrl}`)
+    }
+
+    return rssData.items.map((item: any) => {
+      let pubDate: number | undefined
+      if (item.created) {
+        const parsedDate = Date.parse(item.created)
+        if (!isNaN(parsedDate)) {
+          pubDate = parsedDate
+        }
+      }
+      return {
+        id: item.id || item.link,
+        title: item.title || "",
+        url: item.link || "",
+        pubDate,
+      }
+    })
+  }
+}
 
 export async function refreshSource(id: string) {
   const cacheTable = await getCacheTable()
@@ -18,13 +82,19 @@ export async function refreshSource(id: string) {
     let newData: any[] = []
     
     // Check if it is a static source or a custom source
-    if (getters[id as any]) {
-      newData = (await getters[id as any]()).slice(0, 30)
+    if (getters[id as SourceID]) {
+      newData = (await getters[id as SourceID]()).slice(0, 30)
     } else {
       const customTable = await getCustomSourceTable()
       const customSource = customTable ? await customTable.getById(id) : undefined
       if (customSource && customSource.is_active) {
-        const getter = createBuzzingGetter(customSource.subdomain)
+        let getter: () => Promise<NewsItem[]>
+        if (customSource.provider === "buzzing") {
+          getter = createBuzzingGetter(customSource.subdomain || "")
+        } else {
+          // Handled by generic RSS getter (rss, rsshub, etc.)
+          getter = createRSSGetter(customSource.feed_url)
+        }
         newData = (await getter()).slice(0, 30)
       } else {
         throw new Error(`Source ${id} not found or inactive`)

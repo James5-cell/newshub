@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 export function Menu() {
   const { loggedIn, login, logout, userInfo, enableLogin } = useLogin()
   const [shown, show] = useState(false)
+  const { toggle: toggleSearch } = useSearchBar()
   return (
     <span className="relative" onMouseEnter={() => show(true)} onMouseLeave={() => show(false)}>
       <span className="flex items-center scale-90">
@@ -65,6 +66,41 @@ export function Menu() {
                     </li>
                   ))}
               <AdminMenuEntry loggedIn={loggedIn} />
+            </div>
+
+            {/* Section: Mobile Navigation Links */}
+            <div className="p-1.5 md:hidden border-t border-white/[0.06] pt-1.5 mt-1">
+              <li>
+                <Link
+                  to="/c/$column"
+                  params={{ column: "focus" }}
+                  className="flex items-center gap-2.5 w-full"
+                  onClick={() => show(false)}
+                >
+                  <span className="i-ph:star-duotone inline-block op-50" />
+                  <span>关注</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/c/$column"
+                  params={{ column: "more" }}
+                  className="flex items-center gap-2.5 w-full"
+                  onClick={() => show(false)}
+                >
+                  <span className="i-ph:rss-simple-duotone inline-block op-50" />
+                  <span>来源</span>
+                </Link>
+              </li>
+              <li
+                onClick={() => {
+                  toggleSearch()
+                  show(false)
+                }}
+              >
+                <span className="i-ph:magnifying-glass-duotone inline-block op-50" />
+                <span>搜索</span>
+              </li>
             </div>
 
             {/* Divider */}
