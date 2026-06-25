@@ -42,6 +42,7 @@ function getAuthHeaders(): Record<string, string> {
 function AdminPage() {
   const { loggedIn, enableLogin } = useLogin()
   const queryClient = useQueryClient()
+  const toaster = useToast()
 
   const { data: adminCheck, isLoading: checkingAdmin } = useQuery({
     queryKey: ["admin-check"],
@@ -76,10 +77,14 @@ function AdminPage() {
       })
     },
     onSuccess: () => {
+      toaster("新增自訂來源成功", { type: "success" })
       refetch()
       queryClient.invalidateQueries({ queryKey: ["custom-sources"] })
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
       queryClient.invalidateQueries({ queryKey: ["source-categories"] })
+    },
+    onError: (err: any) => {
+      toaster(err.message || "新增自訂來源失敗", { type: "error" })
     },
   })
 
@@ -95,6 +100,7 @@ function AdminPage() {
       })
     },
     onSuccess: (_, variables) => {
+      toaster("更新自訂來源成功", { type: "success" })
       if (variables.is_active === 0) {
         queryClient.setQueryData(["custom-sources"], (old: CustomSourceInfo[] | undefined) => {
           if (!old) return []
@@ -110,6 +116,9 @@ function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
       queryClient.invalidateQueries({ queryKey: ["source-categories"] })
     },
+    onError: (err: any) => {
+      toaster(err.message || "更新自訂來源失敗", { type: "error" })
+    },
     onSettled: () => {
       setUpdatingDynamicId(null)
     },
@@ -117,13 +126,13 @@ function AdminPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await myFetch(`/admin/sources`, {
+      return await myFetch(`/admin/sources?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        headers: getAuthHeaders(),
       })
     },
     onSuccess: (_, deletedId) => {
+      toaster("刪除自訂來源成功", { type: "success" })
       queryClient.setQueryData(["custom-sources"], (old: CustomSourceInfo[] | undefined) => {
         if (!old) return []
         return old.filter(s => s.id !== deletedId)
@@ -135,6 +144,9 @@ function AdminPage() {
       refetch()
       queryClient.invalidateQueries({ queryKey: ["source-categories-preview"] })
       queryClient.invalidateQueries({ queryKey: ["source-categories"] })
+    },
+    onError: (err: any) => {
+      toaster(err.message || "刪除自訂來源失敗", { type: "error" })
     },
   })
 
