@@ -14,11 +14,18 @@ export default defineEventHandler(async (event) => {
   assertAdmin(event)
 
   const body = await readBody<{ url: string }>(event).catch(() => null)
-  const targetUrl = body?.url?.trim()
+  let rawUrl = body?.url?.trim()
 
-  if (!targetUrl) {
+  if (!rawUrl) {
     throw createError({ statusCode: 400, message: "url parameter is required" })
   }
+
+  // Auto-prepend https:// if missing
+  if (!/^https?:\/\//i.test(rawUrl)) {
+    rawUrl = `https://${rawUrl}`
+  }
+
+  const targetUrl = rawUrl
 
   try {
     // Validate targetUrl format
@@ -26,12 +33,15 @@ export default defineEventHandler(async (event) => {
     
     // Check if it is an RSSHub URL or direct feed format
     const isRssHub = parsedUrl.hostname.includes("rsshub")
-    const isDirectFeedUrl = targetUrl.endsWith(".xml") || targetUrl.endsWith(".rss") || targetUrl.endsWith(".atom") || targetUrl.endsWith("/feed") || targetUrl.endsWith("/rss")
+    
+    // Clean URL for extension matching (strip query and hash)
+    const cleanUrl = targetUrl.split("?")[0].split("#")[0]
+    const isDirectFeedUrl = cleanUrl.endsWith(".xml") || cleanUrl.endsWith(".rss") || cleanUrl.endsWith(".atom") || cleanUrl.endsWith("/feed") || cleanUrl.endsWith("/rss")
     
     let response: any
     let fetchError: any = null
     try {
-      response = await myFetch(targetUrl)
+      response = await myFetch(targetUrl, { parseResponse: (txt) => txt })
     } catch (err: any) {
       fetchError = err
     }
