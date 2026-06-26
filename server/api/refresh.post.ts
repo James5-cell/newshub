@@ -13,11 +13,14 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const body = await readBody(event).catch(() => ({}))
   const source = (body?.source || query?.source) as string | undefined
+  const sources = (body?.sources || query?.sources) as string[] | undefined
 
-  if (!source) {
+  const hasSources = Array.isArray(sources) && sources.length > 0
+
+  if (!source && !hasSources) {
     throw createError({
       statusCode: 400,
-      message: "Bad Request: 'source' parameter or body field is required."
+      message: "Bad Request: 'source' or non-empty 'sources' array parameter is required."
     })
   }
 
@@ -70,9 +73,38 @@ export default defineEventHandler(async (event) => {
           failed
         }
       }
+    } else if (hasSources) {
+      logger.info(`User ${user.id} triggered manual refresh of ${sources.length} sources (refresh count: ${newLimit.count}/3)`)
+      const results = await Promise.all(
+        sources.map(async (id) => {
+          try {
+            await refreshSource(id)
+            return { id, success: true }
+          } catch (e) {
+            return { id, success: false, error: e }
+          }
+        })
+      )
+      const succeeded = results.filter(r => r.success).length
+      const failed = results.filter(r => !r.success).length
+      
+      return {
+        status: "success",
+        message: "Manual refresh of specified sources completed.",
+        rateLimit: {
+          count: newLimit.count,
+          limit: 3,
+          resetAt: newLimit.reset_at
+        },
+        summary: {
+          total: results.length,
+          succeeded,
+          failed
+        }
+      }
     } else {
       logger.info(`User ${user.id} triggered manual refresh of source ${source} (refresh count: ${newLimit.count}/3)`)
-      const result = await refreshSource(source)
+      const result = await refreshSource(source!)
       
       return {
         status: "success",
@@ -90,7 +122,7 @@ export default defineEventHandler(async (event) => {
       }
     }
   } catch (err: any) {
-    logger.error(`Manual refresh failed for source ${source}:`, err)
+    logger.error(`Manual refresh failed for source ${source || sources}:`, err)
     throw createError({
       statusCode: 500,
       message: err.message || "Failed to refresh source."

@@ -1,10 +1,11 @@
 import { metadata } from "@shared/metadata"
 import { Link } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { currentColumnIDAtom } from "~/atoms"
+import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
 
 export function NavBar() {
   const currentId = useAtomValue(currentColumnIDAtom)
+  const currentSources = useAtomValue(currentSourcesAtom)
   const { loggedIn } = useLogin()
   const toaster = useToast()
   const queryClient = useQueryClient()
@@ -19,7 +20,7 @@ export function NavBar() {
   const minutesLeft = Math.ceil((resetAt - now) / 60000)
   const refreshTooltip = limitReached
     ? `已用 3/3 次，${minutesLeft}分钟后重置`
-    : `全局强制刷新所有板块 (已用 ${count}/3 次)`
+    : `全局强制刷新当前所有板块 (已用 ${count}/3 次)`
 
   const handleGlobalRefresh = async () => {
     if (limitReached) {
@@ -31,7 +32,7 @@ export function NavBar() {
       toaster("正在强制刷新所有板块...", { type: "info" })
       const res = await myFetch<any>("/refresh", {
         method: "POST",
-        body: { source: "all" },
+        body: { sources: currentSources },
         headers: {
           Authorization: `Bearer ${safeParseString(localStorage.getItem("jwt"))}`
         }
@@ -45,8 +46,23 @@ export function NavBar() {
       }
 
       toaster("全局刷新成功，正在重新加载数据...", { type: "success" })
-      cacheSources.clear()
-      await queryClient.refetchQueries()
+      
+      // Clear client-side cache for current sources
+      currentSources.forEach(id => cacheSources.delete(id))
+      
+      // Refetch queries related to current visible sources and columns
+      await queryClient.refetchQueries({
+        predicate: (query) => {
+          const [type, id] = query.queryKey as ["source" | "entire", any]
+          if (type === "source") {
+            return currentSources.includes(id)
+          }
+          if (type === "entire") {
+            return true
+          }
+          return false
+        }
+      })
     } catch (err: any) {
       toaster(err.message || "全局刷新失败", { type: "error" })
     }
