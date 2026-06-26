@@ -44,29 +44,21 @@ export class CustomSourceTable {
       );
     `).run()
 
-    // Idempotent migration
-    const infoRes = await this.db.prepare(`PRAGMA table_info(custom_sources)`).all() as any
-    const cols = (infoRes.results ?? infoRes) as { name: string }[]
-    const colNames = cols.map(c => c.name)
+    // Idempotent migration via safe try-catch column additions
+    const safeAddColumn = async (col: string, def: string) => {
+      try {
+        await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN ${col} ${def};`).run()
+      } catch {
+        // Safe to ignore duplicate column error
+      }
+    }
 
-    if (!colNames.includes('is_mainstream_media')) {
-      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN is_mainstream_media INTEGER DEFAULT 0;`).run()
-    }
-    if (!colNames.includes('priority_weight')) {
-      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN priority_weight INTEGER DEFAULT 0;`).run()
-    }
-    if (!colNames.includes('tags')) {
-      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN tags TEXT DEFAULT '[]';`).run()
-    }
-    if (!colNames.includes('badge_label')) {
-      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN badge_label TEXT DEFAULT '';`).run()
-    }
-    if (!colNames.includes('provider')) {
-      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN provider TEXT DEFAULT 'rss';`).run()
-    }
-    if (!colNames.includes('feed_url')) {
-      await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN feed_url TEXT DEFAULT '';`).run()
-    }
+    await safeAddColumn("is_mainstream_media", "INTEGER DEFAULT 0")
+    await safeAddColumn("priority_weight", "INTEGER DEFAULT 0")
+    await safeAddColumn("tags", "TEXT DEFAULT '[]'")
+    await safeAddColumn("badge_label", "TEXT DEFAULT ''")
+    await safeAddColumn("provider", "TEXT DEFAULT 'rss'")
+    await safeAddColumn("feed_url", "TEXT DEFAULT ''")
 
     // Migrate existing Buzzing sources
     try {
@@ -136,20 +128,48 @@ export class CustomSourceTable {
     const fields: string[] = []
     const values: any[] = []
 
-    if (source.name !== undefined) { fields.push("name = ?"); values.push(source.name) }
-    if (source.subdomain !== undefined) { fields.push("subdomain = ?"); values.push(source.subdomain) }
-    if (source.provider !== undefined) { fields.push("provider = ?"); values.push(source.provider) }
-    if (source.feed_url !== undefined) { fields.push("feed_url = ?"); values.push(source.feed_url) }
-    if (source.type !== undefined) { fields.push("type = ?"); values.push(source.type) }
-    if (source.column_id !== undefined) { fields.push("column_id = ?"); values.push(source.column_id) }
-    if (source.color !== undefined) { fields.push("color = ?"); values.push(source.color) }
-    if (source.is_active !== undefined) { fields.push("is_active = ?"); values.push(source.is_active) }
-    if (source.interval_ms !== undefined) { fields.push("interval_ms = ?"); values.push(source.interval_ms) }
-    if (source.home_url !== undefined) { fields.push("home_url = ?"); values.push(source.home_url) }
-    if (source.is_mainstream_media !== undefined) { fields.push("is_mainstream_media = ?"); values.push(source.is_mainstream_media) }
-    if (source.priority_weight !== undefined) { fields.push("priority_weight = ?"); values.push(source.priority_weight) }
-    if (source.tags !== undefined) { fields.push("tags = ?"); values.push(source.tags) }
-    if (source.badge_label !== undefined) { fields.push("badge_label = ?"); values.push(source.badge_label) }
+    if (source.name !== undefined) {
+      fields.push("name = ?"); values.push(source.name)
+    }
+    if (source.subdomain !== undefined) {
+      fields.push("subdomain = ?"); values.push(source.subdomain)
+    }
+    if (source.provider !== undefined) {
+      fields.push("provider = ?"); values.push(source.provider)
+    }
+    if (source.feed_url !== undefined) {
+      fields.push("feed_url = ?"); values.push(source.feed_url)
+    }
+    if (source.type !== undefined) {
+      fields.push("type = ?"); values.push(source.type)
+    }
+    if (source.column_id !== undefined) {
+      fields.push("column_id = ?"); values.push(source.column_id)
+    }
+    if (source.color !== undefined) {
+      fields.push("color = ?"); values.push(source.color)
+    }
+    if (source.is_active !== undefined) {
+      fields.push("is_active = ?"); values.push(source.is_active)
+    }
+    if (source.interval_ms !== undefined) {
+      fields.push("interval_ms = ?"); values.push(source.interval_ms)
+    }
+    if (source.home_url !== undefined) {
+      fields.push("home_url = ?"); values.push(source.home_url)
+    }
+    if (source.is_mainstream_media !== undefined) {
+      fields.push("is_mainstream_media = ?"); values.push(source.is_mainstream_media)
+    }
+    if (source.priority_weight !== undefined) {
+      fields.push("priority_weight = ?"); values.push(source.priority_weight)
+    }
+    if (source.tags !== undefined) {
+      fields.push("tags = ?"); values.push(source.tags)
+    }
+    if (source.badge_label !== undefined) {
+      fields.push("badge_label = ?"); values.push(source.badge_label)
+    }
 
     if (fields.length === 0) return
 
@@ -212,26 +232,20 @@ export class SourceOverrideTable {
       );
     `).run()
 
-    // Idempotent migration
-    const infoRes = await this.db.prepare(`PRAGMA table_info(source_overrides)`).all() as any
-    const cols = (infoRes.results ?? infoRes) as { name: string }[]
-    const colNames = cols.map(c => c.name)
+    // Idempotent migration via safe try-catch column additions
+    const safeAddColumn = async (col: string, def: string) => {
+      try {
+        await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN ${col} ${def};`).run()
+      } catch {
+        // Safe to ignore duplicate column error
+      }
+    }
 
-    if (!colNames.includes('is_mainstream_media')) {
-      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN is_mainstream_media INTEGER DEFAULT -1;`).run()
-    }
-    if (!colNames.includes('priority_weight')) {
-      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN priority_weight INTEGER DEFAULT 0;`).run()
-    }
-    if (!colNames.includes('tags')) {
-      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN tags TEXT DEFAULT NULL;`).run()
-    }
-    if (!colNames.includes('badge_label')) {
-      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN badge_label TEXT DEFAULT NULL;`).run()
-    }
-    if (!colNames.includes('is_deleted')) {
-      await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN is_deleted INTEGER DEFAULT 0;`).run()
-    }
+    await safeAddColumn("is_mainstream_media", "INTEGER DEFAULT -1")
+    await safeAddColumn("priority_weight", "INTEGER DEFAULT 0")
+    await safeAddColumn("tags", "TEXT DEFAULT NULL")
+    await safeAddColumn("badge_label", "TEXT DEFAULT NULL")
+    await safeAddColumn("is_deleted", "INTEGER DEFAULT 0")
 
     logger.success(`init/migrate source_overrides table`)
   }
@@ -281,7 +295,7 @@ export class SourceOverrideTable {
 
   async upsert(source_id: string, is_hidden: number, traits?: { is_mainstream_media?: number, priority_weight?: number, tags?: string | null, badge_label?: string | null }) {
     const now = Date.now()
-    
+
     if (traits) {
       await this.db.prepare(`
         INSERT INTO source_overrides (source_id, is_hidden, is_mainstream_media, priority_weight, tags, badge_label, created_at, updated_at)
