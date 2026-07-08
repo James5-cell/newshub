@@ -1,4 +1,8 @@
-# robots.txt for NewsHub - postsoma-2050
+import { defineEventHandler, setResponseHeader } from "h3"
+
+export default defineEventHandler((event) => {
+  setResponseHeader(event, "Content-Type", "text/plain; charset=utf-8")
+  return `# robots.txt for NewsHub
 # Optimized for Search Engine Optimization (SEO) & Answer Engine Optimization (AEO)
 
 User-agent: *
@@ -45,3 +49,5 @@ Disallow: /api
 # Hostname and Sitemap Reference
 Host: https://205077.xyz
 Sitemap: https://205077.xyz/sitemap.xml
+`
+})

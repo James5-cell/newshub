@@ -5,6 +5,7 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
+      "#nitro/index": ["server/nitro-index.d.ts"],
       "#/*": ["server/*"],
       "@shared/*": ["shared/*"]
     }
