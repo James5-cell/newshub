@@ -27,12 +27,31 @@ export interface SourceCategoriesData {
   metadata: Record<string, SourceCategoryMetadata>
 }
 
+const LOCAL_STORAGE_CACHE_KEY = "source_categories_cache"
+
 export function useSourceCategories() {
   const { data, isLoading, isError: isQueryError } = useQuery({
     queryKey: ["source-categories"],
     queryFn: async () => {
       const res: SourceCategoriesData = await myFetch("/source-categories")
+      if (res?.categories) {
+        try {
+          localStorage.setItem(LOCAL_STORAGE_CACHE_KEY, JSON.stringify(res))
+        } catch { }
+      }
       return res
+    },
+    initialData: () => {
+      try {
+        const cached = localStorage.getItem(LOCAL_STORAGE_CACHE_KEY)
+        if (cached) {
+          const parsed = JSON.parse(cached) as SourceCategoriesData
+          if (parsed?.categories) {
+            return parsed
+          }
+        }
+      } catch { }
+      return undefined
     },
     staleTime: 1000 * 60 * 5, // 5 minutes cache
     gcTime: 1000 * 60 * 10,
@@ -67,4 +86,3 @@ export function useSourceCategories() {
     isError: !!isQueryError,
   }
 }
-

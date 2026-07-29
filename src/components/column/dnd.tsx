@@ -82,23 +82,23 @@ export function Dnd() {
       return [...userOrdered, ...newItems] as SourceID[]
     }
 
-    // 分類 API 尚未回傳或暫無資料：先顯示本機資料列；站方排序在載入後由 effect 寫入
-    if (!catData && !isCatError) {
-      if (currentColumnID === "focus") return items as SourceID[]
-      return items as SourceID[]
+    if (currentColumnID === "focus") return items as SourceID[]
+
+    // Fallback when backend is unavailable or error
+    if (isCatError) {
+      if (currentColumnID === "more" || currentColumnID === "news") {
+        const allStatic = Object.keys(sources)
+        const dynIds = customSourceIds
+        const hiddenSet = new Set(hiddenSourceIds)
+        return [...allStatic, ...dynIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+      }
+      const staticSet = new Set(items as string[])
+      const dynamicIds = customSourceIds.filter(id => !staticSet.has(id))
+      const hiddenSet = new Set(hiddenSourceIds)
+      return [...items, ...dynamicIds].filter(id => !hiddenSet.has(id)) as SourceID[]
     }
 
-    // Fallback when backend is unavailable
-    if (currentColumnID === "more" || currentColumnID === "news") {
-      const allStatic = Object.keys(sources)
-      const dynIds = customSourceIds
-      const hiddenSet = new Set(hiddenSourceIds)
-      return [...allStatic, ...dynIds].filter(id => !hiddenSet.has(id)) as SourceID[]
-    }
-    const staticSet = new Set(items as string[])
-    const dynamicIds = customSourceIds.filter(id => !staticSet.has(id))
-    const hiddenSet = new Set(hiddenSourceIds)
-    return [...items, ...dynamicIds].filter(id => !hiddenSet.has(id)) as SourceID[]
+    return []
   }, [catData, isCatError, currentColumnID, items, customSourceIds, hiddenSourceIds, manualOrderByColumn])
 
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
