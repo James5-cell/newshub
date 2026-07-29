@@ -1,11 +1,14 @@
 import { motion } from "framer-motion"
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
 export function Menu() {
   const { loggedIn, login, logout, userInfo, enableLogin } = useLogin()
   const [shown, show] = useState(false)
   const { toggle: toggleSearch } = useSearchBar()
+  const location = useLocation()
+  const isSelah = location.pathname.startsWith("/selah")
+
   return (
     <span className="relative" onMouseEnter={() => show(true)} onMouseLeave={() => show(false)}>
       <span className="flex items-center scale-90">
@@ -41,7 +44,7 @@ export function Menu() {
           <motion.div
             id="dropdown-menu"
             className={$([
-              "w-52 rounded-lg overflow-hidden",
+              "w-56 rounded-lg overflow-hidden",
               "bg-[#1A1A1A]/95 backdrop-blur-md",
               "border border-white/[0.08]",
               "shadow-2xl shadow-black/80",
@@ -69,34 +72,81 @@ export function Menu() {
             </div>
 
             {/* Section: Mobile Navigation Links */}
-            <div className="p-1.5 md:hidden border-t border-white/[0.06] pt-1.5 mt-1">
-              <li>
-                <Link
-                  to="/c/$column"
-                  params={{ column: "focus" }}
-                  className="flex items-center gap-2.5 w-full"
-                  onClick={() => show(false)}
-                >
-                  <span className="i-ph:star-duotone inline-block op-50" />
-                  <span>关注</span>
-                </Link>
-              </li>
-              <li
-                onClick={() => {
-                  toggleSearch()
-                  show(false)
-                }}
-              >
-                <span className="i-ph:magnifying-glass-duotone inline-block op-50" />
-                <span>搜索</span>
-              </li>
+            <div className="p-1.5 md:hidden border-t border-white/[0.06] pt-1.5 mt-1 space-y-0.5">
+              {isSelah ? (
+                <>
+                  <div className="px-2 py-1 text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
+                    Selah Framework Nav
+                  </div>
+                  <li>
+                    <Link to="/selah" className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                      <span className="i-ph:compass-duotone inline-block text-red-400" />
+                      <span>Overview</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to={"/selah/extensions" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                      <span className="i-ph:squares-four-duotone inline-block text-red-400" />
+                      <span>Extensions</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to={"/selah/setup" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                      <span className="i-ph:list-checks-duotone inline-block text-red-400" />
+                      <span>Setup Wizard</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to={"/selah/guide" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                      <span className="i-ph:book-open-duotone inline-block text-red-400" />
+                      <span>Use Cases</span>
+                    </Link>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link
+                      to="/c/$column"
+                      params={{ column: "focus" }}
+                      className="flex items-center gap-2.5 w-full"
+                      onClick={() => show(false)}
+                    >
+                      <span className="i-ph:star-duotone inline-block op-50" />
+                      <span>关注</span>
+                    </Link>
+                  </li>
+                  <li
+                    onClick={() => {
+                      toggleSearch()
+                      show(false)
+                    }}
+                  >
+                    <span className="i-ph:magnifying-glass-duotone inline-block op-50" />
+                    <span>搜索</span>
+                  </li>
+                </>
+              )}
             </div>
 
             {/* Divider */}
             <div className="border-t border-white/[0.06] mx-2" />
 
             {/* Section: External & Info links */}
-            <div className="p-1.5">
+            <div className="p-1.5 space-y-0.5">
+              <Link
+                to="/selah"
+                className="flex items-center justify-between px-3 py-2 text-sm text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-md transition-all cursor-pointer font-medium"
+                onClick={() => show(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="i-ph:circles-three-plus-duotone text-base text-red-400" />
+                  <span>Selah System</span>
+                </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300">
+                  套件
+                </span>
+              </Link>
               <Link
                 to="/about"
                 className="flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"

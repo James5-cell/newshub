@@ -9,11 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SelahRouteImport } from './routes/selah'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SelahIndexRouteImport } from './routes/selah/index'
+import { Route as SelahSetupRouteImport } from './routes/selah/setup'
+import { Route as SelahGuideRouteImport } from './routes/selah/guide'
+import { Route as SelahExtensionsRouteImport } from './routes/selah/extensions'
 import { Route as CColumnRouteImport } from './routes/c.$column'
 
+const SelahRoute = SelahRouteImport.update({
+  id: '/selah',
+  path: '/selah',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -29,6 +39,26 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SelahIndexRoute = SelahIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SelahRoute,
+} as any)
+const SelahSetupRoute = SelahSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => SelahRoute,
+} as any)
+const SelahGuideRoute = SelahGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => SelahRoute,
+} as any)
+const SelahExtensionsRoute = SelahExtensionsRouteImport.update({
+  id: '/extensions',
+  path: '/extensions',
+  getParentRoute: () => SelahRoute,
+} as any)
 const CColumnRoute = CColumnRouteImport.update({
   id: '/c/$column',
   path: '/c/$column',
@@ -39,38 +69,87 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/selah': typeof SelahRouteWithChildren
   '/c/$column': typeof CColumnRoute
+  '/selah/extensions': typeof SelahExtensionsRoute
+  '/selah/guide': typeof SelahGuideRoute
+  '/selah/setup': typeof SelahSetupRoute
+  '/selah/': typeof SelahIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/c/$column': typeof CColumnRoute
+  '/selah/extensions': typeof SelahExtensionsRoute
+  '/selah/guide': typeof SelahGuideRoute
+  '/selah/setup': typeof SelahSetupRoute
+  '/selah': typeof SelahIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/selah': typeof SelahRouteWithChildren
   '/c/$column': typeof CColumnRoute
+  '/selah/extensions': typeof SelahExtensionsRoute
+  '/selah/guide': typeof SelahGuideRoute
+  '/selah/setup': typeof SelahSetupRoute
+  '/selah/': typeof SelahIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/admin' | '/c/$column'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/selah'
+    | '/c/$column'
+    | '/selah/extensions'
+    | '/selah/guide'
+    | '/selah/setup'
+    | '/selah/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/admin' | '/c/$column'
-  id: '__root__' | '/' | '/about' | '/admin' | '/c/$column'
+  to:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/c/$column'
+    | '/selah/extensions'
+    | '/selah/guide'
+    | '/selah/setup'
+    | '/selah'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/selah'
+    | '/c/$column'
+    | '/selah/extensions'
+    | '/selah/guide'
+    | '/selah/setup'
+    | '/selah/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  SelahRoute: typeof SelahRouteWithChildren
   CColumnRoute: typeof CColumnRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/selah': {
+      id: '/selah'
+      path: '/selah'
+      fullPath: '/selah'
+      preLoaderRoute: typeof SelahRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -92,6 +171,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/selah/': {
+      id: '/selah/'
+      path: '/'
+      fullPath: '/selah/'
+      preLoaderRoute: typeof SelahIndexRouteImport
+      parentRoute: typeof SelahRoute
+    }
+    '/selah/setup': {
+      id: '/selah/setup'
+      path: '/setup'
+      fullPath: '/selah/setup'
+      preLoaderRoute: typeof SelahSetupRouteImport
+      parentRoute: typeof SelahRoute
+    }
+    '/selah/guide': {
+      id: '/selah/guide'
+      path: '/guide'
+      fullPath: '/selah/guide'
+      preLoaderRoute: typeof SelahGuideRouteImport
+      parentRoute: typeof SelahRoute
+    }
+    '/selah/extensions': {
+      id: '/selah/extensions'
+      path: '/extensions'
+      fullPath: '/selah/extensions'
+      preLoaderRoute: typeof SelahExtensionsRouteImport
+      parentRoute: typeof SelahRoute
+    }
     '/c/$column': {
       id: '/c/$column'
       path: '/c/$column'
@@ -102,10 +209,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface SelahRouteChildren {
+  SelahExtensionsRoute: typeof SelahExtensionsRoute
+  SelahGuideRoute: typeof SelahGuideRoute
+  SelahSetupRoute: typeof SelahSetupRoute
+  SelahIndexRoute: typeof SelahIndexRoute
+}
+
+const SelahRouteChildren: SelahRouteChildren = {
+  SelahExtensionsRoute: SelahExtensionsRoute,
+  SelahGuideRoute: SelahGuideRoute,
+  SelahSetupRoute: SelahSetupRoute,
+  SelahIndexRoute: SelahIndexRoute,
+}
+
+const SelahRouteWithChildren = SelahRoute._addFileChildren(SelahRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  SelahRoute: SelahRouteWithChildren,
   CColumnRoute: CColumnRoute,
 }
 export const routeTree = rootRouteImport

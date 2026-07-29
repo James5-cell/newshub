@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation } from "@tanstack/react-router"
 import { NavBar } from "../navbar"
 import { Menu } from "./menu"
 import { goToTopAtom } from "~/atoms"
@@ -15,7 +15,6 @@ function GoTop() {
   )
 }
 
-
 function Search() {
   const { toggle } = useSearchBar()
   return (
@@ -30,10 +29,13 @@ function Search() {
 
 export function Header() {
   const currentId = useAtomValue(currentColumnIDAtom)
+  const location = useLocation()
+  const isSelah = location.pathname.startsWith("/selah")
+
   return (
     <>
-      <span className="flex justify-self-start">
-        <Link to="/" className="flex gap-2 items-center">
+      <span className="flex justify-self-start items-center">
+        <Link to="/" className="flex gap-2 items-center" title="NewsHub 首页">
           <svg viewBox="0 0 512 512" className="w-9 h-9 flex-shrink-0" aria-label="logo">
             <defs>
               <linearGradient id="navLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -65,27 +67,33 @@ export function Header() {
           </span>
         </Link>
       </span>
+
       <span className="justify-self-center">
-        <span className="hidden md:(inline-block)">
-          <NavBar />
-        </span>
+        {!isSelah && (
+          <span className="hidden md:(inline-block)">
+            <NavBar />
+          </span>
+        )}
       </span>
+
       <span className="justify-self-end flex gap-4 items-center">
-        <div className="hidden md:flex items-center gap-3 text-sm font-medium mr-1">
-          <Link
-            to="/c/$column"
-            params={{ column: "focus" }}
-            className={$(
-              "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs font-medium",
-              currentId === "focus"
-                ? "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30"
-                : "text-white/50 hover:text-white/85 hover:bg-white/[0.04]"
-            )}
-          >
-            <span className="i-ph:star-duotone text-amber-400/90 text-sm" />
-            <span>关注</span>
-          </Link>
-        </div>
+        {!isSelah && (
+          <div className="hidden md:flex items-center gap-3 text-sm font-medium mr-1">
+            <Link
+              to="/c/$column"
+              params={{ column: "focus" }}
+              className={$(
+                "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs font-medium",
+                currentId === "focus"
+                  ? "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30"
+                  : "text-white/50 hover:text-white/85 hover:bg-white/[0.04]"
+              )}
+            >
+              <span className="i-ph:star-duotone text-amber-400/90 text-sm" />
+              <span>关注</span>
+            </Link>
+          </div>
+        )}
 
         <div className="flex gap-2 items-center text-lg op-60">
           <Search />
