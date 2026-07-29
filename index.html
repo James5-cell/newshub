@@ -5,47 +5,92 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://205077.xyz/" />
+
   <!-- SEO Meta Tags -->
-  <meta name="description" content="postsoma-2050 NewsHub - 实时新闻聚合阅读器，汇集全球热点新闻，提供优雅的阅读体验" />
-  <meta name="keywords" content="新闻,科技新闻,实时新闻,新闻聚合,NewsHub,postsoma-2050" />
+  <meta name="description" content="postsoma-2050 NewsHub - 实时新闻聚合阅读器，汇集全球热点新闻、科技动态与热榜趋势，提供优雅的阅读体验与 GEO/AI 检索支持" />
+  <meta name="keywords" content="新闻,科技新闻,实时新闻,新闻聚合,热榜,NewsHub,postsoma-2050,GEO,AEO" />
   <meta name="author" content="postsoma-2050" />
-  <meta name="robots" content="index, follow" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="postsoma-2050 NewsHub - 优雅的新闻聚合阅读器" />
-  <meta property="og:description" content="实时新闻聚合阅读器，汇集全球热点新闻，提供优雅的阅读体验" />
+  <meta property="og:description" content="实时新闻聚合阅读器，汇集全球热点新闻、科技动态与热榜趋势，提供优雅的阅读体验" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://205077.xyz" />
+  <meta property="og:url" content="https://205077.xyz/" />
   <meta property="og:image" content="https://205077.xyz/og-image.png" />
+  <meta property="og:site_name" content="NewsHub" />
 
   <!-- Twitter Card Meta Tags -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="postsoma-2050 NewsHub - 优雅的新闻聚合阅读器" />
-  <meta name="twitter:description" content="实时新闻聚合阅读器，汇集全球热点新闻，提供优雅的阅读体验" />
+  <meta name="twitter:description" content="实时新闻聚合阅读器，汇集全球热点新闻、科技动态与热榜趋势，提供优雅的阅读体验" />
   <meta name="twitter:image" content="https://205077.xyz/og-image.png" />
 
   <meta name="theme-color" content="#F14D42" />
   <link rel="preload" href="/Baloo2-Bold.subset.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
 
-  <!-- Schema.org markup for Google -->
+  <!-- Schema.org Rich JSON-LD Markup for Google & GEO AI Engines -->
   <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "postsoma-2050 NewsHub",
-      "url": "https://205077.xyz",
-      "description": "实时新闻聚合阅读器，汇集全球热点新闻，提供优雅的阅读体验",
-    }
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "postsoma-2050 NewsHub",
+        "alternateName": ["NewsHub", "205077 News"],
+        "url": "https://205077.xyz/",
+        "description": "实时新闻聚合阅读器，汇集全球热点新闻、科技动态与热榜趋势，提供优雅的阅读体验",
+        "publisher": {
+          "@type": "Organization",
+          "name": "postsoma-2050",
+          "url": "https://205077.xyz/"
+        },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://205077.xyz/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "postsoma-2050 NewsHub",
+        "url": "https://205077.xyz/",
+        "logo": "https://205077.xyz/icon-512.png",
+        "sameAs": [
+          "https://postsoma-2050.website/"
+        ],
+        "publishingPrinciples": "https://205077.xyz/about"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "NewsHub",
+        "operatingSystem": "All",
+        "applicationCategory": "NewsApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "基于 React 19 和 Nitro 的高能实时新闻聚合Web应用"
+      }
+    ]
   </script>
 
   <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-EL9HHYE5LC"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RL5TXGWY67"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
-    gtag('config', 'G-EL9HHYE5LC');
+    gtag('config', 'G-RL5TXGWY67');
   </script>
 
   <script>
@@ -56,7 +101,7 @@
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   </script>
-  <title>postsoma-2050 NewsHub</title>
+  <title>postsoma-2050 NewsHub - 实时新闻聚合阅读器</title>
 </head>
 
 <body>

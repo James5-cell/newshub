@@ -81,17 +81,6 @@ export function Menu() {
                   <span>关注</span>
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/c/$column"
-                  params={{ column: "more" }}
-                  className="flex items-center gap-2.5 w-full"
-                  onClick={() => show(false)}
-                >
-                  <span className="i-ph:rss-simple-duotone inline-block op-50" />
-                  <span>来源</span>
-                </Link>
-              </li>
               <li
                 onClick={() => {
                   toggleSearch()
@@ -106,13 +95,30 @@ export function Menu() {
             {/* Divider */}
             <div className="border-t border-white/[0.06] mx-2" />
 
-            {/* Section: External links */}
+            {/* Section: External & Info links */}
             <div className="p-1.5">
+              <Link
+                to="/about"
+                className="flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                onClick={() => show(false)}
+              >
+                <span className="i-ph:info-duotone text-base" />
+                关于 & E-E-A-T
+              </Link>
+              <a
+                href="/llms.txt"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <span className="i-ph:robot-duotone text-base" />
+                llms.txt (GEO)
+              </a>
               <a
                 href="https://postsoma-2050.website/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                className="flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
               >
                 <svg
                   width="15"

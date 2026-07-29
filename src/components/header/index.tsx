@@ -71,31 +71,19 @@ export function Header() {
         </span>
       </span>
       <span className="justify-self-end flex gap-4 items-center">
-        <div className="hidden md:flex items-center gap-3 text-sm font-medium mr-2">
+        <div className="hidden md:flex items-center gap-3 text-sm font-medium mr-1">
           <Link
             to="/c/$column"
             params={{ column: "focus" }}
             className={$(
-              "transition-colors",
+              "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs font-medium",
               currentId === "focus"
-                ? "text-white/90 font-medium"
-                : "text-white/40 hover:text-white/70"
+                ? "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30"
+                : "text-white/50 hover:text-white/85 hover:bg-white/[0.04]"
             )}
           >
-            关注
-          </Link>
-          <div className="w-[1px] h-3.5 bg-white/10" />
-          <Link
-            to="/c/$column"
-            params={{ column: "more" }}
-            className={$(
-              "transition-colors",
-              currentId === "more"
-                ? "text-white/90 font-medium"
-                : "text-white/40 hover:text-white/70"
-            )}
-          >
-            来源
+            <span className="i-ph:star-duotone text-amber-400/90 text-sm" />
+            <span>关注</span>
           </Link>
         </div>
 

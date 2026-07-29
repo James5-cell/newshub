@@ -10,17 +10,20 @@ export function NavBar() {
   const toaster = useToast()
   const queryClient = useQueryClient()
   const { data: statusRes } = useSourcesStatus()
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const userLimit = statusRes?.userLimit
   const now = Date.now()
   const resetAt = userLimit?.resetAt ?? 0
   const count = userLimit?.count ?? 0
-  const limitReached = count >= 3 && now < resetAt
+  const limitReached = loggedIn && count >= 3 && now < resetAt
 
   const minutesLeft = Math.ceil((resetAt - now) / 60000)
-  const refreshTooltip = limitReached
-    ? `已用 3/3 次，${minutesLeft}分钟后重置`
-    : `全局强制刷新当前所有板块 (已用 ${count}/3 次)`
+  const refreshTooltip = loggedIn
+    ? (limitReached
+        ? `已用 3/3 次，${minutesLeft}分钟后重置`
+        : `强制刷新当前所有板块 (已用 ${count}/3 次)`)
+    : "刷新当前所有板块数据"
 
   const handleGlobalRefresh = async () => {
     if (limitReached) {
@@ -29,23 +32,25 @@ export function NavBar() {
     }
 
     try {
-      toaster("正在强制刷新所有板块...", { type: "info" })
-      const res = await myFetch<any>("/refresh", {
-        method: "POST",
-        body: { sources: currentSources },
-        headers: {
-          Authorization: `Bearer ${safeParseString(localStorage.getItem("jwt"))}`
-        }
-      })
-      
-      if (res?.rateLimit) {
-        queryClient.setQueryData(["sources-status", loggedIn], (old: any) => {
-          if (!old) return old
-          return { ...old, userLimit: res.rateLimit }
-        })
-      }
+      setIsRefreshing(true)
+      toaster("正在刷新所有板块数据...", { type: "info" })
 
-      toaster("全局刷新成功，正在重新加载数据...", { type: "success" })
+      if (loggedIn) {
+        const res = await myFetch<any>("/refresh", {
+          method: "POST",
+          body: { sources: currentSources },
+          headers: {
+            Authorization: `Bearer ${safeParseString(localStorage.getItem("jwt"))}`
+          }
+        })
+        
+        if (res?.rateLimit) {
+          queryClient.setQueryData(["sources-status", loggedIn], (old: any) => {
+            if (!old) return old
+            return { ...old, userLimit: res.rateLimit }
+          })
+        }
+      }
       
       // Clear client-side cache for current sources
       currentSources.forEach(id => cacheSources.delete(id))
@@ -63,50 +68,63 @@ export function NavBar() {
           return false
         }
       })
+
+      toaster("数据刷新完成！", { type: "success" })
     } catch (err: any) {
-      toaster(err.message || "全局刷新失败", { type: "error" })
+      toaster(err.message || "刷新失败", { type: "error" })
+    } finally {
+      setIsRefreshing(false)
     }
   }
 
   return (
-    <span className={$([
-      "flex p-1 rounded-lg text-sm gap-0.5",
-      "bg-white/[0.04] border border-white/[0.08]",
-    ])}
-    >
-      {(["news", "hottest", "realtime"] as const).map(columnId => (
-        <Link
-          key={columnId}
-          to="/c/$column"
-          params={{ column: columnId }}
-          className={$(
-            "px-3 py-1 rounded-md cursor-pointer transition-all duration-200",
-            currentId === columnId
-              ? "bg-white/[0.1] text-white/90 font-medium"
-              : "text-white/50 hover:text-white/75 hover:bg-white/[0.05]",
-          )}
-        >
-          {metadata[columnId].name}
-        </Link>
-      ))}
+    <div className="flex items-center gap-2">
+      {/* Primary Column Navigation Pills */}
+      <nav
+        className={$([
+          "flex p-1 rounded-xl text-sm gap-1",
+          "bg-white/[0.04] border border-white/[0.08] backdrop-blur-md shadow-sm",
+        ])}
+        aria-label="分类导航"
+      >
+        {(["news", "hottest", "realtime"] as const).map(columnId => (
+          <Link
+            key={columnId}
+            to="/c/$column"
+            params={{ column: columnId }}
+            className={$(
+              "px-3.5 py-1.5 rounded-lg cursor-pointer transition-all duration-200 text-sm font-medium",
+              currentId === columnId
+                ? "bg-white/12 text-white shadow-sm ring-1 ring-white/10"
+                : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]",
+            )}
+          >
+            {metadata[columnId].name}
+          </Link>
+        ))}
+      </nav>
 
-      {loggedIn && (
-        <button
-          type="button"
-          onClick={handleGlobalRefresh}
-          disabled={limitReached}
-          title={refreshTooltip}
+      {/* Standalone Action Control: Refresh Button (Always visible to all users) */}
+      <button
+        type="button"
+        onClick={handleGlobalRefresh}
+        disabled={limitReached || isRefreshing}
+        title={refreshTooltip}
+        className={$(
+          "h-[38px] px-3 rounded-xl transition-all duration-200 flex items-center gap-1.5 text-xs font-medium border backdrop-blur-md",
+          limitReached
+            ? "bg-white/[0.02] border-white/[0.04] text-white/20 cursor-not-allowed"
+            : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/15 active:scale-95 cursor-pointer shadow-sm"
+        )}
+      >
+        <span
           className={$(
-            "px-3 py-1 rounded-md cursor-pointer transition-all duration-200 flex items-center gap-1",
-            limitReached
-              ? "text-white/20 cursor-not-allowed hover:bg-transparent"
-              : "text-white/50 hover:text-white/75 hover:bg-white/[0.05]"
+            "i-ph:arrow-counter-clockwise-duotone text-base",
+            isRefreshing && "animate-spin text-red-400"
           )}
-        >
-          <span className={$("i-ph:arrow-counter-clockwise-duotone")} />
-          <span>全局刷新</span>
-        </button>
-      )}
-    </span>
+        />
+        <span className="hidden sm:inline">刷新</span>
+      </button>
+    </div>
   )
 }

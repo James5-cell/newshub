@@ -18,7 +18,15 @@ export default defineEventHandler((event) => {
   sitemap += `    <priority>1.0</priority>\n`
   sitemap += `  </url>\n`
   
-  // 2. Fixed Column Pages (focus, news, hottest, realtime, more)
+  // 2. About & E-E-A-T Page
+  sitemap += `  <url>\n`
+  sitemap += `    <loc>${baseUrl}/about</loc>\n`
+  sitemap += `    <lastmod>${now}</lastmod>\n`
+  sitemap += `    <changefreq>weekly</changefreq>\n`
+  sitemap += `    <priority>0.8</priority>\n`
+  sitemap += `  </url>\n`
+
+  // 3. Fixed Column Pages (focus, news, hottest, realtime, more)
   for (const id of fixedColumnIds) {
     const priority = id === "hottest" || id === "realtime" ? "0.9" : "0.8"
     const changefreq = id === "hottest" || id === "realtime" ? "always" : "hourly"
