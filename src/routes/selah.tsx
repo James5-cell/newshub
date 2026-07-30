@@ -11,7 +11,6 @@ function SelahLayout() {
   const navItems = [
     { label: "Overview", to: "/selah" as any, pathMatch: (p: string) => p === "/selah" || p === "/selah/" },
     { label: "Extensions", to: "/selah/extensions" as any, pathMatch: (p: string) => p.startsWith("/selah/extensions") },
-    { label: "Setup Wizard", to: "/selah/setup" as any, pathMatch: (p: string) => p.startsWith("/selah/setup") },
     { label: "Use Cases", to: "/selah/guide" as any, pathMatch: (p: string) => p.startsWith("/selah/guide") },
   ]
 
@@ -35,15 +34,6 @@ function SelahLayout() {
               Selah Framework
             </h1>
           </div>
-
-          {/* Clean return link to NewsHub */}
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors self-start sm:self-auto py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80 rounded px-1"
-          >
-            <span className="i-ph:arrow-left-bold text-[10px]" />
-            <span>返回 NewsHub 发现首页</span>
-          </Link>
         </div>
 
         {/* Selah Internal Page Tab Navigation Bar */}

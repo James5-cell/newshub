@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
+import { SELAH_CWS_URLS } from "../../utils/selah-cws"
 
 export const Route = createFileRoute("/selah/guide")({
   component: SelahGuidePage,
@@ -8,10 +9,10 @@ const CONTEXT_SCENARIOS = [
   {
     id: "reader",
     problem: "页面广告、侧栏或弹窗过多，无法集中注意力阅读",
-    recommendation: "建议使用 Selah Reader",
+    toolName: "Selah Reader",
     toolType: "Chrome Extension",
     icon: "i-ph:book-open-duotone",
-    cwsUrl: "https://chromewebstore.google.com/detail/nnpnfhchnogjjmpkglednkibohnahibe",
+    cwsUrl: SELAH_CWS_URLS.reader,
     steps: [
       "在 Chrome 中打开任意格式混乱或广告较多的网页。",
       "点击浏览器右上角 Selah Reader 图标（或快捷键）。",
@@ -22,10 +23,10 @@ const CONTEXT_SCENARIOS = [
   {
     id: "translate",
     problem: "遇到外语文章、生词或领域专业术语，频繁打断阅读",
-    recommendation: "建议使用 Selah Translate",
+    toolName: "Selah Translate",
     toolType: "Chrome Extension",
     icon: "i-ph:translate-duotone",
-    cwsUrl: "https://chromewebstore.google.com/detail/knkabdofpjnhgeoohhkfdkgmnjlhbheb",
+    cwsUrl: SELAH_CWS_URLS.translate,
     steps: [
       "在阅读英文或外语网页时，选中任意词汇或段落。",
       "行间将自然出现实时翻译浮层或对照译文。",
@@ -36,10 +37,10 @@ const CONTEXT_SCENARIOS = [
   {
     id: "pace",
     problem: "面对数千字长文章容易走神，或陷入无止境划屏",
-    recommendation: "建议使用 Selah Pace",
+    toolName: "Selah Pace",
     toolType: "Chrome Extension",
     icon: "i-ph:timer-duotone",
-    cwsUrl: "https://chromewebstore.google.com/detail/fmjcgbifpjhcefmmejbanbakanckdmbo",
+    cwsUrl: SELAH_CWS_URLS.pace,
     steps: [
       "打开需要深度阅读的长文页面。",
       "启动 Selah Pace，设置一个温和的阅读专注时段（如 15 分钟）。",
@@ -48,12 +49,26 @@ const CONTEXT_SCENARIOS = [
     note: "温和无压力的时间辅助，无排行榜与打卡焦虑。",
   },
   {
+    id: "hold",
+    problem: "发现有价值的文章或资料，读到一半或暂时没时间深度阅读",
+    toolName: "Selah Hold",
+    toolType: "Chrome Extension",
+    icon: "i-ph:push-pin-duotone",
+    cwsUrl: SELAH_CWS_URLS.hold,
+    steps: [
+      "在任意网页点击 Selah Hold 图标，将该网页一键加入暂存队列。",
+      "系统将基于网页信息提示建议分类，或由你决定预计回访时间。",
+      "空闲时集中打开暂存队列进行二次深度阅读、研究或归档。",
+    ],
+    note: "本地优先的短期回访队列，非永久书签栏或收藏夹。",
+  },
+  {
     id: "listen",
     problem: "阅读时遇到重点段落或句子，希望直接用语音听读发音",
-    recommendation: "建议使用 Selah Listen",
+    toolName: "Selah Listen",
     toolType: "Chrome Extension",
     icon: "i-ph:headphones-duotone",
-    cwsUrl: "https://chromewebstore.google.com/detail/lblcfjimgkpmfpfjlekgfdmplcicnfal",
+    cwsUrl: SELAH_CWS_URLS.listen,
     steps: [
       "在网页中用鼠标选中想要听读的任意文本或段落。",
       "点击浮出的 Selah Listen 按钮或使用快捷键启动发音。",
@@ -64,7 +79,7 @@ const CONTEXT_SCENARIOS = [
   {
     id: "newshub",
     problem: "不知道在线世界现在发生了什么，缺乏优质内容源头",
-    recommendation: "建议使用 NewsHub 发现入口",
+    toolName: "NewsHub",
     toolType: "Web Application",
     icon: "i-ph:newspaper-duotone",
     isInternal: true,
@@ -197,9 +212,9 @@ function SelahGuidePage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span className="text-xs font-semibold text-neutral-300 bg-white/[0.05] px-3 py-1.5 rounded-lg border border-white/10">
-                  👉 {sc.recommendation}
+              <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+                <span className="text-xs font-mono text-neutral-400 bg-white/[0.03] px-2.5 py-1 rounded border border-white/[0.08]">
+                  {sc.toolName}
                 </span>
 
                 {sc.isInternal ? (
@@ -251,22 +266,17 @@ function SelahGuidePage() {
         <div>
           <h3 className="text-base font-semibold text-white">找到适合你当前阅读情境的工具了吗？</h3>
           <p className="text-xs text-neutral-400 mt-0.5">
-            可随时前往扩展清单查看完整说明，或使用安装向导完成配置。
+            可随时前往扩展清单查看完整分工说明与对应 Chrome Web Store 安装入口。
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-shrink-0">
           <Link
             to={"/selah/extensions" as any}
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-medium text-neutral-300 hover:text-white transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-300 hover:bg-red-500/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80"
           >
-            扩展清单
-          </Link>
-          <Link
-            to={"/selah/setup" as any}
-            className="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-300 hover:bg-red-500/30 transition-colors cursor-pointer"
-          >
-            安装向导
+            <span>浏览扩展清单</span>
+            <span className="i-ph:arrow-right-bold text-[10px]" />
           </Link>
         </div>
       </section>

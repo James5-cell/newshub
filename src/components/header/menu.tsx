@@ -91,12 +91,6 @@ export function Menu() {
                     </Link>
                   </li>
                   <li>
-                    <Link to={"/selah/setup" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
-                      <span className="i-ph:list-checks-duotone inline-block text-red-400" />
-                      <span>Setup Wizard</span>
-                    </Link>
-                  </li>
-                  <li>
                     <Link to={"/selah/guide" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
                       <span className="i-ph:book-open-duotone inline-block text-red-400" />
                       <span>Use Cases</span>

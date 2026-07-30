@@ -1,19 +1,32 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation } from "@tanstack/react-router"
 
 export function Footer() {
+  const location = useLocation()
+  const isSelahPage = location.pathname.startsWith("/selah")
+
   return (
     <div className="flex flex-col items-center justify-center gap-3 text-center text-xs text-neutral-400 font-mono">
-      {/* Eye-catching Selah System Pill Callout */}
+      {/* Dynamic Selah System / Return Pill Callout */}
       <div className="my-1">
-        <Link
-          to="/selah"
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white transition-all group shadow-sm cursor-pointer"
-        >
-          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-          <span className="i-ph:circles-three-plus-duotone text-sm text-red-400" />
-          <span className="font-sans font-medium text-xs">探索 Selah 阅读系统 (Reader / Translate / Pace / Listen)</span>
-          <span className="i-ph:arrow-right-bold text-[10px] group-hover:translate-x-0.5 transition-transform text-neutral-400 group-hover:text-white" />
-        </Link>
+        {isSelahPage ? (
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/15 text-neutral-300 hover:bg-white/10 hover:border-white/25 hover:text-white transition-all group shadow-sm cursor-pointer"
+          >
+            <span className="i-ph:arrow-left-bold text-xs text-neutral-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="font-sans font-medium text-xs">返回 NewsHub 发现首页</span>
+          </Link>
+        ) : (
+          <Link
+            to="/selah"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white transition-all group shadow-sm cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+            <span className="i-ph:circles-three-plus-duotone text-sm text-red-400" />
+            <span className="font-sans font-medium text-xs">探索 Selah 阅读工具体系</span>
+            <span className="i-ph:arrow-right-bold text-[10px] group-hover:translate-x-0.5 transition-transform text-neutral-400 group-hover:text-white" />
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 text-neutral-500">

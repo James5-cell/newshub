@@ -1,4 +1,5 @@
 import type { HTMLProps, PropsWithChildren } from "react"
+import { useLocation, useRouter } from "@tanstack/react-router"
 import { defu } from "defu"
 import { useMount } from "react-use"
 import { useOverlayScrollbars } from "./useOverlayScrollbars"
@@ -61,7 +62,24 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
   const lastTrigger = useRef(0)
   const timer = useRef<any>(null)
   const setGoToTop = useSetAtom(goToTopAtom)
+
+  const router = useRouter()
+  const location = useLocation()
+  const scrollCache = useRef<Map<string, number>>(new Map())
+  const prevPathnameRef = useRef<string>(location.pathname)
+
+  const getHistoryKey = useCallback(() => {
+    const historyLoc = (router.history as any)?.location
+    return historyLoc?.state?.key || location.href
+  }, [router, location.href])
+
   const onScroll = useCallback((e: Event) => {
+    const el = e.target as HTMLElement
+    if (el) {
+      const key = getHistoryKey()
+      scrollCache.current.set(key, el.scrollTop)
+    }
+
     const now = Date.now()
     if (now - lastTrigger.current > 50) {
       lastTrigger.current = now
@@ -78,7 +96,8 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
         500,
       )
     }
-  }, [setGoToTop])
+  }, [setGoToTop, getHistoryKey])
+
   const [initialize, instance] = useOverlayScrollbars({
     options: {
       scrollbars: {
@@ -116,6 +135,33 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
       }
     }
   }, [instance])
+
+  // Scroll restoration & route change scroll reset for the global scroll container
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const currentKey = getHistoryKey()
+    const historyAction = (router.history as any)?.action
+    const currentPathname = location.pathname
+
+    if (historyAction === "POP") {
+      // Restore scroll position on browser back/forward
+      const savedTop = scrollCache.current.get(currentKey) ?? 0
+      el.scrollTop = savedTop
+    } else {
+      // PUSH or REPLACE navigation
+      if (prevPathnameRef.current === currentPathname) {
+        // Same route navigation (e.g. clicking Overview while at bottom of /selah)
+        el.scrollTo({ top: 0, behavior: "smooth" })
+      } else {
+        // Navigating to a new route: instant scroll reset to top
+        el.scrollTop = 0
+      }
+    }
+
+    prevPathnameRef.current = currentPathname
+  }, [location.href, location.pathname, (location.state as any)?.key, router, getHistoryKey])
 
   return (
     <div ref={ref} {...props} className={$("overflow-auto scrollbar-hidden", className)}>
