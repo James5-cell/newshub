@@ -77,6 +77,20 @@ const CONTEXT_SCENARIOS = [
     note: "支持浏览器本地 TTS 发音与可选 AI 接口接入；仅针对选中文本发音（不支持全篇朗读与熄屏播放）。",
   },
   {
+    id: "pagefirst",
+    problem: "想要快速提取网页核心要点，或需要针对当前页面内容进行深度问答与总结",
+    toolName: "Selah PageFirst",
+    toolType: "Chrome Extension",
+    icon: "i-ph:sparkles-duotone",
+    cwsUrl: SELAH_CWS_URLS.pagefirst,
+    steps: [
+      "打开需要提炼或研读的任意长文、报告或资讯网页。",
+      "点击浏览器扩展图标启动 Selah PageFirst 智能阅读 Copilot。",
+      "查看自动生成的核心要点总结，或输入问题与页面上下文直接对话。",
+    ],
+    note: "基于当前页面上下文的智能 Copilot，无需离开网页即可提炼与追问。",
+  },
+  {
     id: "newshub",
     problem: "不知道在线世界现在发生了什么，缺乏优质内容源头",
     toolName: "NewsHub",

@@ -104,6 +104,18 @@ export const EXTENSION_GROUPS: SelahExtensionGroup[] = [
         guideAnchor: "/selah/guide#listen" as any,
         highlights: ["划词选中文本即读", "本地 TTS / AI 接口", "语速微调控制"],
       },
+      {
+        id: "pagefirst",
+        number: "04",
+        name: "Selah PageFirst",
+        actionTitle: "AI 页面助手 · 智能问答与提炼",
+        tagline: "基于当前页面上下文的智能对话与总结，快速提取核心信息",
+        description: "专为当前页面设计的智能阅读 Copilot。无需离开页面，即可对长文进行即时提炼、关键点总结或深度追问，帮你快速掌握内容精髓。",
+        cwsUrl: SELAH_CWS_URLS.pagefirst,
+        icon: "i-ph:sparkles-duotone",
+        guideAnchor: "/selah/guide#pagefirst" as any,
+        highlights: ["页面上下文即时对话", "一键提炼核心要点", "无缝融入原生阅读"],
+      },
     ],
   },
 ]
@@ -119,7 +131,7 @@ function SelahExtensionsPage() {
           <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded border border-red-500/20">
             Official Chrome Extensions Suite
           </span>
-          <span className="text-xs text-neutral-400 font-mono">Manifest V3 · 5 Tools</span>
+          <span className="text-xs text-neutral-400 font-mono">Manifest V3 · 6 Tools</span>
         </div>
         <h1 className="text-2xl md:text-4xl font-bold font-brand tracking-tight text-white">
           Selah 阅读工具系统扩展清单

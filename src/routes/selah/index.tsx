@@ -58,7 +58,7 @@ function SelahHubIndex() {
               阅读中的即时工具
             </h2>
             <p className="text-xs sm:text-sm font-mono text-neutral-400">
-              Selah Reader · Selah Translate · Selah Listen
+              Selah Reader · Selah Translate · Selah Listen · Selah PageFirst
             </p>
           </div>
 
