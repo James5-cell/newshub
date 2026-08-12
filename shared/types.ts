@@ -108,7 +108,13 @@ export interface NewsItem {
 }
 
 export interface SourceResponse {
-  status: "success" | "cache"
+  /**
+   * - "success"  : Fresh data just scraped from the source.
+   * - "cache"    : Serving valid (non-expired) cached data.
+   * - "stale"    : Scrape failed; serving expired historical cache as a fallback.
+   *                Frontend can use this to show a "data may be outdated" hint.
+   */
+  status: "success" | "cache" | "stale"
   id: SourceID
   updatedTime: number | string
   items: NewsItem[]

@@ -1,10 +1,10 @@
+import type { NewsItem } from "@shared/types"
+import { rss2json } from "./rss2json"
 import { getters } from "#/getters"
 import { getCacheTable } from "#/database/cache"
 import { getCustomSourceTable, getOverrideTable } from "#/database/source-config"
 import { getSourceStatusTable } from "#/database/status"
 import { createBuzzingGetter } from "#/sources/buzzing"
-import { rss2json } from "./rss2json"
-import type { NewsItem } from "@shared/types"
 
 export function createRSSGetter(feedUrl: string) {
   return async (): Promise<NewsItem[]> => {
@@ -55,7 +55,7 @@ export function createRSSGetter(feedUrl: string) {
       let pubDate: number | undefined
       if (item.created) {
         const parsedDate = Date.parse(item.created)
-        if (!isNaN(parsedDate)) {
+        if (!Number.isNaN(parsedDate)) {
           pubDate = parsedDate
         }
       }
@@ -69,7 +69,56 @@ export function createRSSGetter(feedUrl: string) {
   }
 }
 
-export async function refreshSource(id: string) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Singleflight: In-flight refresh deduplication map
+//
+// Tracks currently executing refresh Promises keyed by source ID.
+// If a second concurrent request arrives for the same source while a fetch is
+// already in progress, it reuses the same Promise instead of firing a new HTTP
+// request to the target website.
+//
+// Works correctly in both Node.js (single process) and Cloudflare Workers
+// (single-threaded isolate event loop). No external dependencies required.
+// ─────────────────────────────────────────────────────────────────────────────
+interface RefreshResult {
+  status: string
+  items: NewsItem[]
+  updatedTime: number
+}
+const inflightRefreshes = new Map<string, Promise<RefreshResult>>()
+
+/**
+ * Refresh a single source with Singleflight deduplication.
+ *
+ * If an identical refresh for `id` is already in flight (e.g. triggered by
+ * another concurrent request), this function returns the same Promise so that
+ * only one external HTTP request is made regardless of how many callers arrive.
+ */
+export function refreshSource(id: string): Promise<RefreshResult> {
+  // ── Singleflight hit: reuse the in-flight Promise ──
+  const inflight = inflightRefreshes.get(id)
+  if (inflight) {
+    logger.info(`[Singleflight] Deduped refresh for "${id}" – waiting for in-flight request`)
+    return inflight
+  }
+
+  // ── Singleflight miss: start a new fetch and register it ──
+  const promise = _doRefreshSource(id).finally(() => {
+    // Always clean up the map entry once the Promise settles (success or error),
+    // so that the next request after this one completes starts a fresh fetch.
+    inflightRefreshes.delete(id)
+  })
+
+  inflightRefreshes.set(id, promise)
+  return promise
+}
+
+/**
+ * Internal implementation of the actual scrape + DB write logic.
+ * Never call this directly – always go through refreshSource() to get
+ * Singleflight deduplication.
+ */
+async function _doRefreshSource(id: string): Promise<RefreshResult> {
   const cacheTable = await getCacheTable()
   const statusTable = await getSourceStatusTable()
   const now = Date.now()
@@ -80,7 +129,7 @@ export async function refreshSource(id: string) {
 
   try {
     let newData: any[] = []
-    
+
     // Check if it is a static source or a custom source
     if (getters[id as SourceID]) {
       newData = (await getters[id as SourceID]()).slice(0, 30)
@@ -112,30 +161,30 @@ export async function refreshSource(id: string) {
         id,
         last_attempt_at: now,
         last_success_at: now,
-        status: 'success',
-        error_message: ""
+        status: "success",
+        error_message: "",
       })
     }
 
     return {
       status: "success",
       items: newData,
-      updatedTime: now
+      updatedTime: now,
     }
   } catch (e: any) {
     const errorMsg = e instanceof Error ? e.message : String(e)
     logger.error(`Failed to refresh source ${id}:`, e)
-    
+
     if (statusTable) {
       await statusTable.set({
         id,
         last_attempt_at: now,
         last_success_at: lastSuccessAt,
-        status: 'failed',
-        error_message: errorMsg
+        status: "failed",
+        error_message: errorMsg,
       })
     }
-    
+
     throw e
   }
 }
@@ -154,15 +203,15 @@ export async function refreshAllSources() {
 
   // We want to run them with a concurrency limit of 5.
   const limit = 5
-  const results: { id: string; success: boolean; error?: any }[] = []
-  
+  const results: { id: string, success: boolean, error?: any }[] = []
+
   const queue = [...allIds]
-  
+
   async function worker() {
     while (queue.length > 0) {
       const id = queue.shift()
       if (!id) break
-      
+
       try {
         await refreshSource(id)
         results.push({ id, success: true })
@@ -175,6 +224,6 @@ export async function refreshAllSources() {
   // Start workers
   const workers = Array.from({ length: Math.min(limit, queue.length) }, () => worker())
   await Promise.all(workers)
-  
+
   return results
 }

@@ -86,9 +86,13 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
         items: result.items,
       }
     } catch (e) {
+      // ── Stale-While-Revalidate: scrape failed, serve expired cache as fallback ──
+      // This prevents a 500 error from reaching the user when the target site is
+      // temporarily unavailable (timeout, 403, 502, etc.).
       if (cache!) {
+        logger.warn(`[SWR] Refresh failed for "${id}", serving stale cache (age: ${Math.round((Date.now() - cache.updated) / 1000)}s)`)
         return {
-          status: "cache",
+          status: "stale",
           id,
           updatedTime: cache.updated,
           items: cache.items,
@@ -160,9 +164,11 @@ async function handleCustomSource(event: any, id: string, latest: boolean): Prom
       items: result.items,
     }
   } catch (e) {
+    // ── Stale-While-Revalidate: scrape failed, serve expired cache as fallback ──
     if (cache!) {
+      logger.warn(`[SWR] Refresh failed for custom source "${id}", serving stale cache (age: ${Math.round((Date.now() - cache.updated) / 1000)}s)`)
       return {
-        status: "cache",
+        status: "stale",
         id: id as SourceID,
         updatedTime: cache.updated,
         items: cache.items,
