@@ -5,7 +5,7 @@ export interface SourceStatus {
   id: string
   last_attempt_at: number
   last_success_at: number
-  status: 'success' | 'failed' | 'unknown'
+  status: "success" | "failed" | "unknown"
   error_message?: string
 }
 
@@ -88,12 +88,13 @@ export class UserRefreshLimitsTable {
     `).run(userId, count, resetAt)
   }
 
-  async increment(userId: string): Promise<UserRefreshLimit> {
+  async increment(userId: string, windowMs = 10 * 60 * 1000): Promise<UserRefreshLimit> {
     const now = Date.now()
     const limit = await this.get(userId)
     if (!limit || now >= limit.reset_at) {
+      // Window expired (or first use): start a fresh window
       const count = 1
-      const resetAt = now + 60 * 60 * 1000 // 1 hour window
+      const resetAt = now + windowMs
       await this.set(userId, count, resetAt)
       return { user_id: userId, count, reset_at: resetAt }
     } else {
