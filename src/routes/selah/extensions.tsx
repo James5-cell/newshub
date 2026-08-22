@@ -59,6 +59,18 @@ export const EXTENSION_GROUPS: SelahExtensionGroup[] = [
         guideAnchor: "/selah/guide#pace" as any,
         highlights: ["自定义阅读倒计时", "本地专注会话记录", "无压力温和提醒"],
       },
+      {
+        id: "bridge",
+        number: "03",
+        name: "Selah Bridge",
+        actionTitle: "视频跨语阅读 · 精准片段捕获",
+        tagline: "实时双语字幕与时间戳转写，无干扰沉浸理解与分享 YouTube 视频",
+        description: "专为视频学习与研究打造的无干扰跨语言阅读工具。实时生成毫秒级双语字幕，一键提取结构化时间戳转写供 AI（ChatGPT / Claude / Gemini）分析，并支持在播放中随手捕获高价值金句与定向跳转分享。所有偏好与笔记均基于本地存储，无追踪、无账号依赖。",
+        cwsUrl: SELAH_CWS_URLS.bridge,
+        icon: "i-ph:subtitles-duotone",
+        guideAnchor: "/selah/guide#bridge" as any,
+        highlights: ["实时双语字幕 (15 种语言)", "结构化 AI 转写与 Prompt 导出", "关键片段书签与深度链接分享"],
+      },
     ],
   },
   {
@@ -131,7 +143,7 @@ function SelahExtensionsPage() {
           <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded border border-red-500/20">
             Official Chrome Extensions Suite
           </span>
-          <span className="text-xs text-neutral-400 font-mono">Manifest V3 · 6 Tools</span>
+          <span className="text-xs text-neutral-400 font-mono">Manifest V3 · 7 Tools</span>
         </div>
         <h1 className="text-2xl md:text-4xl font-bold font-brand tracking-tight text-white">
           Selah 阅读工具系统扩展清单

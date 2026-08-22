@@ -37,7 +37,7 @@ function SelahHubIndex() {
               内容与注意力
             </h2>
             <p className="text-xs sm:text-sm font-mono text-neutral-400">
-              Selah Hold · Selah Pace
+              Selah Hold · Selah Pace · Selah Bridge
             </p>
           </div>
 

@@ -49,6 +49,20 @@ const CONTEXT_SCENARIOS = [
     note: "温和无压力的时间辅助，无排行榜与打卡焦虑。",
   },
   {
+    id: "bridge",
+    problem: "观看外语视频或专业教程时跨语言理解吃力，难以提取结构化要点与精准片段",
+    toolName: "Selah Bridge",
+    toolType: "Chrome Extension",
+    icon: "i-ph:subtitles-duotone",
+    cwsUrl: SELAH_CWS_URLS.bridge,
+    steps: [
+      "在 YouTube 播放外语视频或专业讲座时自动开启实时双语字幕。",
+      "一键生成带结构化时间戳的视频全文转写，快速复制给 AI 分析与提炼。",
+      "在播放过程中随手记录关键片段书签，并生成带毫秒级定位的分享链接。",
+    ],
+    note: "专为视频学习打造的跨语阅读与片段捕获，本地存储、无追踪依赖。",
+  },
+  {
     id: "hold",
     problem: "发现有价值的文章或资料，读到一半或暂时没时间深度阅读",
     toolName: "Selah Hold",
