@@ -1,29 +1,37 @@
-import * as cheerio from "cheerio"
 import type { NewsItem } from "@shared/types"
+
+interface HNApiResponse {
+  hits?: {
+    objectID: string
+    title: string
+    url?: string
+    points?: number
+    created_at_i?: number
+  }[]
+}
 
 export default defineSource(async () => {
   const baseURL = "https://news.ycombinator.com"
-  const html: any = await myFetch(baseURL)
-  const $ = cheerio.load(html)
-  const $main = $(".athing")
+  const data = await myFetch<HNApiResponse>(
+    "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30",
+  )
+
   const news: NewsItem[] = []
-  $main.each((_, el) => {
-    const a = $(el).find(".titleline a").first()
-    // const url = a.attr("href")
-    const title = a.text()
-    const id = $(el).attr("id")
-    const score = $(`#score_${id}`).text()
-    const url = `${baseURL}/item?id=${id}`
-    if (url && id && title) {
-      news.push({
-        url,
-        title,
-        id,
-        extra: {
-          info: score,
-        },
-      })
+  if (data?.hits && Array.isArray(data.hits)) {
+    for (const item of data.hits) {
+      if (item.objectID && item.title) {
+        news.push({
+          id: item.objectID,
+          title: item.title,
+          url: `${baseURL}/item?id=${item.objectID}`,
+          pubDate: item.created_at_i ? item.created_at_i * 1000 : undefined,
+          extra: {
+            info: item.points !== undefined ? `${item.points} points` : false,
+          },
+        })
+      }
     }
-  })
+  }
+
   return news
 })
