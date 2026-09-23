@@ -3,14 +3,40 @@ import type { VitePWAOptions } from "vite-plugin-pwa"
 import { VitePWA } from "vite-plugin-pwa"
 
 const pwaOption: Partial<VitePWAOptions> = {
-  includeAssets: ["icon.svg", "apple-touch-icon.png"],
+  includeAssets: [
+    "favicon.ico",
+    "favicon.svg",
+    "icon.svg",
+    "apple-touch-icon.png",
+    "icon-192x192.png",
+    "icon-512x512.png",
+  ],
   filename: "swx.js",
   manifest: {
     name: "NewsHub",
     short_name: "NewsHub",
-    description: "Elegant reading of real-time and hottest news",
+    description: "Real-time Tech, Science & Developer News Aggregator",
     theme_color: "#F14D42",
+    background_color: "#0d1117",
     icons: [
+      {
+        src: "icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
       {
         src: "pwa-192x192.png",
         sizes: "192x192",
@@ -20,18 +46,6 @@ const pwaOption: Partial<VitePWAOptions> = {
         src: "pwa-512x512.png",
         sizes: "512x512",
         type: "image/png",
-      },
-      {
-        src: "pwa-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "pwa-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
       },
     ],
   },
