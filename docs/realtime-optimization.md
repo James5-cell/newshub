@@ -29,8 +29,8 @@ Worker 每分钟调用受密钥保护的 `/api/cron/realtime`，最多刷新三�
 
 2026-10-02（用户所在时区）单次验证，以下官方 RSS 返回 200 且内容为 RSS；这不是长期可用率保证：
 
-- 香港电台国际： https://rthk.hk/rthk/news/rss/c_expressnews_cinternational.xml （已接入）
-- 香港电台财经： https://rthk.hk/rthk/news/rss/c_expressnews_cfinance.xml （已接入）
+- 香港电台国际： https://rthk.hk/rthk/news/rss/c_expressnews_cinternational.xml （已按用户要求移除内置源；由管理后台数据库配置）
+- 香港电台财经： https://rthk.hk/rthk/news/rss/c_expressnews_cfinance.xml （已按用户要求移除内置源；由管理后台数据库配置）
 - 美联储货币政策： https://www.federalreserve.gov/feeds/press_monetary.xml （可在管理后台新增，provider=rss、type=realtime、interval_ms=600000；英文事件源，发布频率较低）
 
 官方目录：https://news.rthk.hk/rthk/ch/rss.feed 、 https://www.federalreserve.gov/feeds/feeds.htm 。

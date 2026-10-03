@@ -39,8 +39,6 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.news-mascot-dock[data-mode="rest"] .news-mascot-button,
-.news-mascot-dock[data-mode="sleep"] .news-mascot-button { height: 70%; }
 .news-mascot-button:focus-visible { outline: 2px solid #8edbc2; outline-offset: 2px; border-radius: 50%; }
 .news-mascot-dock[data-mode="shy_hide"] .news-mascot-button,
 .news-mascot-dock[data-mode="shy_wait"] .news-mascot-button,

@@ -25,3 +25,12 @@ it("rejects a redirect to a private network address", async () => {
   await expect(fetchFeed("https://example.com/feed")).rejects.toThrow("public HTTP")
   expect(request).toHaveBeenCalledTimes(1)
 })
+
+it("identifies upstream Cloudflare challenges before parsing", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>Just a moment...</html>", {
+    status: 403,
+    headers: { "cf-mitigated": "challenge" },
+  })))
+  await expect(fetchFeed("https://news.mingpao.com/rss/pns/s00002.xml"))
+    .rejects.toThrow("blocked by upstream Cloudflare challenge (HTTP 403)")
+})

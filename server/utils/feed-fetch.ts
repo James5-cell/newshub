@@ -20,6 +20,9 @@ export async function fetchFeed(url: string, signal?: AbortSignal): Promise<stri
       response = undefined
     }
     if (!response) throw new Error("Too many feed redirects")
+    if (response.headers.get("cf-mitigated") === "challenge") {
+      throw new Error(`Feed blocked by upstream Cloudflare challenge (HTTP ${response.status}); RSS content was not received`)
+    }
     if (!response.ok) throw new Error(`Feed request failed: ${response.status}`)
     if (Number(response.headers.get("content-length")) > 512 * 1024) throw new Error("Feed exceeds size limit")
     if (!response.body) throw new Error("Feed response is empty")
