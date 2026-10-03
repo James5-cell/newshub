@@ -111,11 +111,20 @@ export interface SourceResponse {
   /**
    * - "success"  : Fresh data just scraped from the source.
    * - "cache"    : Serving valid (non-expired) cached data.
-   * - "stale"    : Scrape failed; serving expired historical cache as a fallback.
+   * - "stale"    : Serving expired cache during an update or after a failed scrape.
    *                Frontend can use this to show a "data may be outdated" hint.
    */
   status: "success" | "cache" | "stale"
   id: SourceID
   updatedTime: number | string
   items: NewsItem[]
+  nextRefreshAt?: number
+}
+
+export interface RefreshResponse {
+  status: "success"
+  data: SourceResponse[]
+  summary: { checked: number, refreshed: number, cached: number, failed: number, deferred: number }
+  errors: { id: string, message: string }[]
+  rateLimit: { count: number, limit: number, resetAt: number }
 }

@@ -1,0 +1,7 @@
+{
+  "name": "newshub-realtime-scheduler",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-02",
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": { "NEWSHUB_URL": "https://205077.xyz" }
+}

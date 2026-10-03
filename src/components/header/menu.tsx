@@ -1,3 +1,4 @@
+import { safeStorage } from "@shared/storage"
 import { motion } from "framer-motion"
 import { Link, useLocation } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
@@ -188,7 +189,7 @@ export function Menu() {
 }
 
 function AdminMenuEntry({ loggedIn }: { loggedIn: boolean }) {
-  const jwt = safeParseString(localStorage.getItem("jwt"))
+  const jwt = safeParseString(safeStorage.getItem("jwt"))
   const { data } = useQuery({
     queryKey: ["admin-check"],
     queryFn: async () => {
@@ -197,7 +198,7 @@ function AdminMenuEntry({ loggedIn }: { loggedIn: boolean }) {
       })
       return res
     },
-    enabled: loggedIn && !!jwt,
+    enabled: loggedIn,
     staleTime: 1000 * 60 * 5,
     retry: false,
   })

@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { motion, AnimatePresence } from "framer-motion"
-import type { CustomSourceInfo } from "~/hooks/useCustomSources"
-import { safeParseString } from "~/utils"
+import { safeStorage } from "@shared/storage"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Link, createFileRoute } from "@tanstack/react-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { AnimatePresence, motion } from "framer-motion"
 import { sources } from "@shared/sources"
 import { typeSafeObjectEntries } from "@shared/type.util"
+import type { CustomSourceInfo } from "~/hooks/useCustomSources"
+import { safeParseString } from "~/utils"
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -35,7 +36,7 @@ const STATIC_COLLAPSED_COUNT = 8
 const PREVIEW_COLLAPSED_COUNT = 5
 
 function getAuthHeaders(): Record<string, string> {
-  const jwt = safeParseString(localStorage.getItem("jwt"))
+  const jwt = safeParseString(safeStorage.getItem("jwt"))
   return jwt ? { Authorization: `Bearer ${jwt}` } : {}
 }
 
@@ -731,7 +732,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected,
   }
 
   const handleBlur = () => {
-    const parsedWeight = parseInt(weight, 10)
+    const parsedWeight = Number.parseInt(weight, 10)
     pendingPayloadRef.current = {
       is_mainstream_media: Number(isMainstream),
       priority_weight: Number.isFinite(parsedWeight) ? parsedWeight : 0,
@@ -1511,7 +1512,7 @@ function PreviewBucket({ title, ids, metadata }: { title: string, ids: string[],
                 <div key={id} className="flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-white/[0.03] transition-colors duration-200">
                   <div
                     className="w-4 h-4 rounded-full bg-cover bg-center flex-shrink-0"
-                    style={{ backgroundImage: `url(${m?.isDynamic ? m.home.replace(/\/$/, '') + '/icon.png' : `/icons/${id.split('-')[0]}.png`})` }}
+                    style={{ backgroundImage: `url(${m?.isDynamic ? `${m.home.replace(/\/$/, '')  }/icon.png` : `/icons/${id.split('-')[0]}.png`})` }}
                   />
                   <span className="truncate flex-1 op-60">{m?.name || id}</span>
                   {m?.isDynamic && <span className="text-[8px] op-20">dyn</span>}

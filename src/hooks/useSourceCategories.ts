@@ -1,3 +1,4 @@
+import { safeStorage } from "@shared/storage"
 import { useQuery } from "@tanstack/react-query"
 import { useAtom } from "jotai"
 import { useEffect } from "react"
@@ -36,14 +37,14 @@ export function useSourceCategories() {
       const res: SourceCategoriesData = await myFetch("/source-categories")
       if (res?.categories) {
         try {
-          localStorage.setItem(LOCAL_STORAGE_CACHE_KEY, JSON.stringify(res))
+          safeStorage.setItem(LOCAL_STORAGE_CACHE_KEY, JSON.stringify(res))
         } catch { }
       }
       return res
     },
     initialData: () => {
       try {
-        const cached = localStorage.getItem(LOCAL_STORAGE_CACHE_KEY)
+        const cached = safeStorage.getItem(LOCAL_STORAGE_CACHE_KEY)
         if (cached) {
           const parsed = JSON.parse(cached) as SourceCategoriesData
           if (parsed?.categories) {

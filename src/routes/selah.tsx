@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router"
+import { Link, Outlet, createFileRoute, useLocation } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/selah")({
   component: SelahLayout,

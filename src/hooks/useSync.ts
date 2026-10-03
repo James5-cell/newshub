@@ -1,16 +1,16 @@
+import { safeStorage } from "@shared/storage"
 import type { PrimitiveMetadata } from "@shared/types"
-import { useDebounce, useMount } from "react-use"
+import { useDebounce } from "react-use"
 import { useLogin } from "./useLogin"
 import { useToast } from "./useToast"
 import { safeParseString } from "~/utils"
 
 async function uploadMetadata(metadata: PrimitiveMetadata) {
-  const jwt = safeParseString(localStorage.getItem("jwt"))
-  if (!jwt) return
+  const jwt = safeParseString(safeStorage.getItem("jwt"))
   await myFetch("/me/sync", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${jwt}`,
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
     body: {
       data: metadata.data,
@@ -20,11 +20,10 @@ async function uploadMetadata(metadata: PrimitiveMetadata) {
 }
 
 async function downloadMetadata(): Promise<PrimitiveMetadata | undefined> {
-  const jwt = safeParseString(localStorage.getItem("jwt"))
-  if (!jwt) return
+  const jwt = safeParseString(safeStorage.getItem("jwt"))
   const { data, updatedTime } = await myFetch("/me/sync", {
     headers: {
-      Authorization: `Bearer ${jwt}`,
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
   }) as PrimitiveMetadata
   // 不用同步 action 字段
@@ -39,7 +38,7 @@ async function downloadMetadata(): Promise<PrimitiveMetadata | undefined> {
 
 export function useSync() {
   const [primitiveMetadata, setPrimitiveMetadata] = useAtom(primitiveMetadataAtom)
-  const { logout, login } = useLogin()
+  const { logout, login, loggedIn } = useLogin()
   const toaster = useToast()
 
   useDebounce(async () => {
@@ -60,11 +59,12 @@ export function useSync() {
       }
     }
 
-    if (primitiveMetadata.action === "manual") {
+    if (loggedIn && primitiveMetadata.action === "manual") {
       fn()
     }
-  }, 10000, [primitiveMetadata])
-  useMount(() => {
+  }, 10000, [primitiveMetadata, loggedIn])
+  useEffect(() => {
+    if (!loggedIn) return
     const fn = async () => {
       try {
         const metadata = await downloadMetadata()
@@ -85,5 +85,5 @@ export function useSync() {
       }
     }
     fn()
-  })
+  }, [loggedIn, login, logout, setPrimitiveMetadata, toaster])
 }

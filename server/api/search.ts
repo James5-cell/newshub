@@ -2,10 +2,14 @@ import { sources } from "@shared/sources"
 import { typeSafeObjectEntries } from "@shared/type.util"
 import { staticSourceMetadata } from "@shared/source-metadata"
 import type { NewsItem } from "@shared/types"
+import { consumePublicLimit } from "#/utils/public-limit"
+import { getCacheTable } from "#/database/cache"
 
 export default defineEventHandler(async (event) => {
   const queryParams = getQuery(event)
   const q = (queryParams.q as string || "").trim().toLowerCase()
+
+  if (q.length > 200) throw createError({ statusCode: 400, message: "Search query is too long" })
 
   if (!q) {
     return {
@@ -14,6 +18,12 @@ export default defineEventHandler(async (event) => {
       items: [],
       debug: { query: q, scannedCaches: 0, matchingArticlesCount: 0 }
     }
+  }
+
+  const quota = await consumePublicLimit(event, "search", 30)
+  if (!quota.allowed) {
+    setHeader(event, "Retry-After", Math.max(1, Math.ceil((quota.resetAt - Date.now()) / 1000)))
+    throw createError({ statusCode: 429, message: "Search requests are too frequent" })
   }
 
   // 1. Get database tables safely
@@ -154,6 +164,8 @@ export default defineEventHandler(async (event) => {
   let scannedCaches = 0
 
   try {
+    const cache = await getCacheTable()
+    if (!cache) throw new Error("Cache database unavailable")
     const db = useDatabase()
     const rows = (await db.prepare("SELECT id, data, updated FROM cache").all()) as any
     const cacheRows = (rows?.results ?? rows ?? []) as any[]
@@ -197,7 +209,7 @@ export default defineEventHandler(async (event) => {
             title: item.title,
             url: item.url,
             mobileUrl: item.mobileUrl,
-            pubDate: item.pubDate || updatedTime,
+            pubDate: item.pubDate,
             sourceId: src.id,
             sourceName: src.name,
             sourceColor: src.color,

@@ -1,79 +1,26 @@
 import { metadata } from "@shared/metadata"
 import { Link } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
+import { refreshMessage, useRefetch } from "~/hooks/useRefetch"
+import { getMountedSources } from "~/utils/refresh"
+import { currentColumnIDAtom } from "~/atoms"
 
 export function NavBar() {
   const currentId = useAtomValue(currentColumnIDAtom)
-  const currentSources = useAtomValue(currentSourcesAtom)
-  const { loggedIn } = useLogin()
   const toaster = useToast()
   const queryClient = useQueryClient()
-  const { data: statusRes } = useSourcesStatus()
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  const userLimit = statusRes?.userLimit
-  const now = Date.now()
-  const resetAt = userLimit?.resetAt ?? 0
-  const count = userLimit?.count ?? 0
-  const limitReached = loggedIn && count >= 3 && now < resetAt
-
-  const minutesLeft = Math.ceil((resetAt - now) / 60000)
-  const refreshTooltip = loggedIn
-    ? (limitReached
-        ? `已用 3/3 次，${minutesLeft}分钟后重置`
-        : `强制刷新当前所有板块 (已用 ${count}/3 次)`)
-    : "刷新当前所有板块数据"
+  const { refresh, isRefreshing, limitReached, resetAt } = useRefetch()
+  const refreshTooltip = limitReached
+    ? `刷新次数已达上限，${Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))}秒后重试`
+    : "刷新当前已查看的板块，所有访客共享更新，无需登录"
 
   const handleGlobalRefresh = async () => {
-    if (limitReached) {
-      toaster(`已达到手动刷新上限，请在 ${minutesLeft} 分钟后重置。`, { type: "warning" })
-      return
-    }
-
+    if (isRefreshing) return
     try {
-      setIsRefreshing(true)
-      toaster("正在刷新所有板块数据...", { type: "info" })
-
-      if (loggedIn) {
-        const res = await myFetch<any>("/refresh", {
-          method: "POST",
-          body: { sources: currentSources },
-          headers: {
-            Authorization: `Bearer ${safeParseString(localStorage.getItem("jwt"))}`
-          }
-        })
-        
-        if (res?.rateLimit) {
-          queryClient.setQueryData(["sources-status", loggedIn], (old: any) => {
-            if (!old) return old
-            return { ...old, userLimit: res.rateLimit }
-          })
-        }
-      }
-      
-      // Clear client-side cache for current sources
-      currentSources.forEach(id => cacheSources.delete(id))
-      
-      // Refetch queries related to current visible sources and columns
-      await queryClient.refetchQueries({
-        predicate: (query) => {
-          const [type, id] = query.queryKey as ["source" | "entire", any]
-          if (type === "source") {
-            return currentSources.includes(id)
-          }
-          if (type === "entire") {
-            return true
-          }
-          return false
-        }
-      })
-
-      toaster("数据刷新完成！", { type: "success" })
-    } catch (err: any) {
-      toaster(err.message || "刷新失败", { type: "error" })
-    } finally {
-      setIsRefreshing(false)
+      const result = await refresh(...getMountedSources(queryClient))
+      toaster(refreshMessage(result), { type: result.summary.failed ? "warning" : "success" })
+    } catch (error: any) {
+      toaster(error.message || "刷新失败", { type: "error" })
     }
   }
 
@@ -110,17 +57,19 @@ export function NavBar() {
         onClick={handleGlobalRefresh}
         disabled={limitReached || isRefreshing}
         title={refreshTooltip}
+        aria-label="刷新当前板块"
+        aria-busy={isRefreshing}
         className={$(
-          "h-[38px] px-3 rounded-xl transition-all duration-200 flex items-center gap-1.5 text-xs font-medium border backdrop-blur-md",
+          "h-11 min-w-11 px-3 rounded-xl transition-all duration-200 flex items-center gap-1.5 text-xs font-medium border backdrop-blur-md",
           limitReached
             ? "bg-white/[0.02] border-white/[0.04] text-white/20 cursor-not-allowed"
-            : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/15 active:scale-95 cursor-pointer shadow-sm"
+            : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/15 active:scale-95 cursor-pointer shadow-sm",
         )}
       >
         <span
           className={$(
             "i-ph:arrow-counter-clockwise-duotone text-base",
-            isRefreshing && "animate-spin text-red-400"
+            isRefreshing && "animate-spin text-red-400",
           )}
         />
         <span className="hidden sm:inline">刷新</span>

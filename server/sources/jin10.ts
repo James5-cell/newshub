@@ -19,11 +19,11 @@ interface Jin10Item {
   remark: any[]
 }
 
-export default defineSource(async () => {
+export default defineSource(async (context) => {
   const timestamp = Date.now()
   const url = `https://www.jin10.com/flash_newest.js?t=${timestamp}`
 
-  const rawData: string = await myFetch(url)
+  const rawData: string = await myFetch(url, { signal: context?.signal })
 
   const jsonStr = (rawData as string)
     .replace(/^var\s+newest\s*=\s*/, "") // 移除开头的变量声明
@@ -33,14 +33,13 @@ export default defineSource(async () => {
 
   return data.filter(k => (k.data.title || k.data.content) && !k.channel?.includes(5)).map((k) => {
     const text = (k.data.title || k.data.content)!.replace(/<\/?b>/g, "")
-    const [,title, desc] = text.match(/^【([^】]*)】(.*)$/) ?? []
     return {
       id: k.id,
-      title: title ?? text,
-      pubDate: parseRelativeDate(k.time, "Asia/Shanghai").valueOf(),
+      title: text,
+      pubDate: tranformToUTC(k.time, "YYYY-MM-DD HH:mm:ss", "Asia/Shanghai"),
       url: `https://flash.jin10.com/detail/${k.id}`,
       extra: {
-        hover: desc,
+        hover: text,
         info: !!k.important && "✰",
       },
     }

@@ -368,35 +368,6 @@
     "interval": 600000,
     "title": "热搜"
   },
-  "bilibili-hot-video": {
-    "name": "哔哩哔哩",
-    "type": "hottest",
-    "disable": "cf",
-    "column": "china",
-    "home": "https://www.bilibili.com",
-    "color": "blue",
-    "interval": 600000,
-    "title": "热门视频"
-  },
-  "bilibili-ranking": {
-    "name": "哔哩哔哩",
-    "type": "hottest",
-    "disable": "cf",
-    "column": "china",
-    "home": "https://www.bilibili.com",
-    "color": "blue",
-    "interval": 1800000,
-    "title": "排行榜"
-  },
-  "kuaishou": {
-    "name": "快手",
-    "type": "hottest",
-    "disable": "cf",
-    "column": "china",
-    "home": "https://www.kuaishou.com",
-    "color": "orange",
-    "interval": 600000
-  },
   "kaopu": {
     "name": "靠谱新闻",
     "desc": "不一定靠谱，多看多思考",
@@ -404,6 +375,34 @@
     "home": "https://kaopu.news/",
     "color": "gray",
     "interval": 1800000
+  },
+  "rthk": {
+    "redirect": "rthk-international",
+    "name": "香港电台",
+    "type": "realtime",
+    "column": "world",
+    "home": "https://news.rthk.hk",
+    "color": "red",
+    "interval": 300000,
+    "title": "国际即时"
+  },
+  "rthk-international": {
+    "name": "香港电台",
+    "type": "realtime",
+    "column": "world",
+    "home": "https://news.rthk.hk",
+    "color": "red",
+    "interval": 300000,
+    "title": "国际即时"
+  },
+  "rthk-finance": {
+    "name": "香港电台",
+    "type": "realtime",
+    "column": "finance",
+    "home": "https://news.rthk.hk",
+    "color": "red",
+    "interval": 300000,
+    "title": "财经即时"
   },
   "jin10": {
     "name": "金十数据",

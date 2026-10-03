@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, expect, it } from "vitest"
 
 // Replica of intent classification and scoring logic for verification
 interface SourceItem {
@@ -97,7 +97,7 @@ function scoreNewsItems(q: string, items: NewsItemMock[], sources: SourceItem[],
   return contentMatches.sort((a, b) => b.score - a.score)
 }
 
-describe("Search Logic Unit Tests", () => {
+describe("search Logic Unit Tests", () => {
   const mockSources: SourceItem[] = [
     { id: "weibo", name: "微博", title: "热搜", aliases: ["weibo", "wb", "新浪微博"], tags: ["社交", "娱乐"], priority_weight: 10 },
     { id: "36kr", name: "36氪", title: "快讯", aliases: ["36kr", "36氪", "kr"], tags: ["科技", "创投"], priority_weight: 0 },

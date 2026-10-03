@@ -1,0 +1,25 @@
+name: Checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Build generates the auto-import declarations needed by typecheck.
+      - run: pnpm build
+        env:
+          CF_PAGES: '1'
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test --run
+      - run: pnpm audit --prod --audit-level high

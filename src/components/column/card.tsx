@@ -1,13 +1,14 @@
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { AnimatePresence, motion, useInView } from "framer-motion"
 import { useWindowSize } from "react-use"
 import { forwardRef, useImperativeHandle, useState } from "react"
+import { sources } from "@shared/sources"
+import { AUTO_REFRESH_INTERVAL } from "@shared/refresh-policy"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
-import { safeParseString } from "~/utils"
+import { refreshMessage, useRefetch } from "~/hooks/useRefetch"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
 import { useSourceCategories } from "~/hooks/useSourceCategories"
-import { sources } from "@shared/sources"
 
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
   id: SourceID
@@ -51,62 +52,18 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging
 })
 
 function NewsCard({ id, setHandleRef }: NewsCardProps) {
-  const { refresh } = useRefetch()
-  const { loggedIn } = useLogin()
-  const queryClient = useQueryClient()
+  const { refresh, isRefreshing, limitReached, resetAt } = useRefetch()
   const toaster = useToast()
-
-  const { data: statusRes } = useSourcesStatus()
-  const sourceStatus = statusRes?.data?.find(s => s.id === id)
-  const userLimit = statusRes?.userLimit
-
-  const now = Date.now()
-  const resetAt = userLimit?.resetAt ?? 0
-  const count = userLimit?.count ?? 0
-  const limitReached = count >= 3 && now < resetAt
-
-  const minutesLeft = Math.ceil((resetAt - now) / 60000)
-  const refreshTooltip = loggedIn
-    ? (limitReached
-        ? `已用 3/3 次，${minutesLeft}分钟后重置`
-        : `手动刷新 (已用 ${count}/3 次)`)
-    : "刷新"
-
+  const refreshTooltip = limitReached
+    ? `刷新次数已达上限，${Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))}秒后重试`
+    : "获取共享最新内容，无需登录；未到更新间隔时使用缓存"
   const handleSingleRefresh = async () => {
-    if (!loggedIn) {
-      refresh(id)
-      return
-    }
-
-    if (limitReached) {
-      toaster(`已达到手动刷新上限，请在 ${minutesLeft} 分钟后重置。`, { type: "warning" })
-      return
-    }
-
+    if (isRefreshing) return
     try {
-      toaster("正在强制刷新板块...", { type: "info" })
-      const res = await myFetch<any>("/refresh", {
-        method: "POST",
-        body: { source: id },
-        headers: {
-          Authorization: `Bearer ${safeParseString(localStorage.getItem("jwt"))}`
-        }
-      })
-      
-      if (res?.rateLimit) {
-        queryClient.setQueryData(["sources-status", loggedIn], (old: any) => {
-          if (!old) return old
-          return { ...old, userLimit: res.rateLimit }
-        })
-      }
-
-      toaster("刷新成功", { type: "success" })
-      cacheSources.delete(id)
-      await queryClient.refetchQueries({
-        queryKey: ["source", id]
-      })
-    } catch (err: any) {
-      toaster(err.message || "刷新失败", { type: "error" })
+      const result = await refresh(id)
+      toaster(refreshMessage(result), { type: result.summary.failed ? "warning" : "success" })
+    } catch (error: any) {
+      toaster(error.message || "刷新失败", { type: "error" })
     }
   }
 
@@ -128,7 +85,9 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
       if (!meta.isDynamic) return `/icons/${(id as string).split("-")[0]}.png`
       if (meta.provider === "buzzing") return `https://${meta.subdomain}.buzzing.cc/icon.png`
       if (meta.home) {
-        try { return `https://www.google.com/s2/favicons?domain=${new URL(meta.home).hostname}&sz=64` } catch {}
+        try {
+          return `https://www.google.com/s2/favicons?domain=${new URL(meta.home).hostname}&sz=64`
+        } catch {}
       }
       return ""
     }
@@ -136,7 +95,9 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
     if (customSource) {
       if (customSource.provider === "buzzing") return `https://${customSource.subdomain}.buzzing.cc/icon.png`
       if (customSource.home) {
-        try { return `https://www.google.com/s2/favicons?domain=${new URL(customSource.home).hostname}&sz=64` } catch {}
+        try {
+          return `https://www.google.com/s2/favicons?domain=${new URL(customSource.home).hostname}&sz=64`
+        } catch {}
       }
       return ""
     }
@@ -149,21 +110,9 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
     queryKey: ["source", id],
     queryFn: async ({ queryKey }) => {
       const id = queryKey[1] as SourceID
-      let url = `/s?id=${id}`
-      const headers: Record<string, any> = {}
-      if (refetchSources.has(id)) {
-        url = `/s?id=${id}&latest`
-        const jwt = safeParseString(localStorage.getItem("jwt"))
-        if (jwt) headers.Authorization = `Bearer ${jwt}`
-        refetchSources.delete(id)
-      } else if (cacheSources.has(id)) {
-        await delay(200)
-        return cacheSources.get(id)
-      }
-
-      const response: SourceResponse = await myFetch(url, {
-        headers,
-      })
+      const cached = cacheSources.get(id)
+      if (cached && cached.nextRefreshAt && Date.now() < cached.nextRefreshAt) return cached
+      const response = await myFetch<SourceResponse>(`/s?id=${encodeURIComponent(id)}`, { timeout: 60000 })
 
       function diff() {
         try {
@@ -184,12 +133,14 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
 
       diff()
 
+      const latest = cacheSources.get(id)
+      if (latest && Number(latest.updatedTime) > Number(response.updatedTime)) return latest
       cacheSources.set(id, response)
       return response
     },
     placeholderData: prev => prev,
-    staleTime: Infinity,
-    refetchOnMount: false,
+    staleTime: AUTO_REFRESH_INTERVAL,
+    refetchOnMount: true,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
@@ -221,13 +172,7 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
               )}
             </div>
             <span className="text-[10px] text-gray-500 flex items-center gap-1">
-              <UpdatedTime isError={isError} updatedTime={data?.updatedTime} />
-              {sourceStatus?.status === "failed" && (
-                <span
-                  title={sourceStatus.error_message || "更新失败"}
-                  className="i-ph:warning-duotone text-red-400 flex-shrink-0 cursor-help"
-                />
-              )}
+              <UpdatedTime isError={isError} isStale={data?.status === "stale"} updatedTime={data?.updatedTime} />
             </span>
           </div>
         </div>
@@ -235,16 +180,21 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
           <button
             type="button"
             title={refreshTooltip}
-            disabled={loggedIn && limitReached}
+            disabled={isRefreshing || isFetching || limitReached}
+            aria-label={`刷新${name}`}
+            aria-busy={isRefreshing || isFetching}
             className={$(
-              "btn p-1 rounded transition-all duration-200",
-              isFetching
-                ? "animate-spin i-ph:circle-dashed-duotone op-50"
-                : "i-ph:arrow-counter-clockwise-duotone op-30 hover:op-70",
-              loggedIn && limitReached && "op-10 cursor-not-allowed hover:op-10"
+              "btn min-w-11 min-h-11 flex items-center justify-center rounded transition-all duration-200",
+              (isFetching || isRefreshing) ? "op-50" : "op-50 hover:op-90",
+              limitReached && "op-10 cursor-not-allowed hover:op-10",
             )}
             onClick={handleSingleRefresh}
-          />
+          >
+            <span
+              aria-hidden="true"
+              className={$((isFetching || isRefreshing) ? "animate-spin i-ph:circle-dashed-duotone" : "i-ph:arrow-counter-clockwise-duotone")}
+            />
+          </button>
           <button
             type="button"
             className={$(
@@ -287,9 +237,9 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
   )
 }
 
-function UpdatedTime({ isError, updatedTime }: { updatedTime: any, isError: boolean }) {
+function UpdatedTime({ isError, isStale, updatedTime }: { updatedTime?: number | string, isError: boolean, isStale: boolean }) {
   const relativeTime = useRelativeTime(updatedTime ?? "")
-  if (relativeTime) return `${relativeTime}更新`
+  if (relativeTime) return <span title={isStale || isError ? "暂未获取到新内容，显示上次成功更新的数据" : "上次成功抓取时间"}>{`${relativeTime}检查${isStale || isError ? " · 暂用旧数据" : ""}`}</span>
   if (isError) return <span className="text-red-400/60">获取失败</span>
   return "加载中..."
 }
@@ -342,7 +292,9 @@ function ExtraInfo({ item }: { item: NewsItem }) {
 
 function NewsUpdatedTime({ date }: { date: string | number }) {
   const relativeTime = useRelativeTime(date)
-  return <>{relativeTime}</>
+  const published = new Date(date)
+  const fullTime = Number.isNaN(published.getTime()) ? undefined : published.toISOString()
+  return <span title={fullTime ? `发布时间：${fullTime}` : "发布时间未知"}>{relativeTime}</span>
 }
 
 function NewsListHot({ items }: { items: NewsItem[] }) {
@@ -387,7 +339,7 @@ function NewsListTimeLine({ items }: { items: NewsItem[] }) {
     <ol className="flex flex-col">
       {items?.map(item => (
         <li
-          key={`${item.id}-${item.pubDate || item?.extra?.date || ""}`}
+          key={item.id}
           className="border-b border-white/[0.04] last:border-b-0"
         >
           {/* Meta line: timestamp + extra */}

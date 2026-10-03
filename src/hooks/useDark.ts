@@ -1,9 +1,11 @@
+import { createJSONStorage } from "jotai/utils"
+import { safeStorage } from "@shared/storage"
 import { useMemo } from "react"
 import { useMedia, useUpdateEffect } from "react-use"
 
 export declare type ColorScheme = "dark" | "light" | "auto"
 
-const colorSchemeAtom = atomWithStorage("color-scheme", "dark")
+const colorSchemeAtom = atomWithStorage<ColorScheme>("color-scheme", "dark", createJSONStorage<ColorScheme>(() => safeStorage))
 
 export function useDark() {
   const [colorScheme, setColorScheme] = useAtom(colorSchemeAtom)

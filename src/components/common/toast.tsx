@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import { useMount } from "react-use"
 import type { ToastItem } from "~/atoms/types"
 import { Timer } from "~/utils"

@@ -1,4 +1,6 @@
 import process from "node:process"
+import { sources } from "@shared/sources"
+import { validateFeedURL } from "#/utils/feed-url"
 import { getCustomSourceTable } from "#/database/source-config"
 
 /**
@@ -37,6 +39,17 @@ export default defineEventHandler(async (event) => {
   if (method === "POST" || method === "PUT") {
     assertAdmin(event)
     const body = await readBody(event)
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw createError({ statusCode: 400, message: "Invalid source body" })
+    if (method === "PUT" && (typeof body.id !== "string" || !body.id)) throw createError({ statusCode: 400, message: "id is required for update" })
+    if (body.provider !== undefined && !["rss", "rsshub", "buzzing"].includes(body.provider)) throw createError({ statusCode: 400, message: "Unknown provider" })
+    if (body.interval_ms !== undefined && (!Number.isFinite(Number(body.interval_ms)) || Number(body.interval_ms) < 60_000 || Number(body.interval_ms) > 86400_000)) throw createError({ statusCode: 400, message: "interval_ms must be between one minute and one day" })
+    for (const key of ["name", "feed_url", "home_url", "badge_label", "subdomain", "id"]) {
+      if (body[key] !== undefined && (typeof body[key] !== "string" || body[key].length > (key.endsWith("url") ? 2048 : 120))) throw createError({ statusCode: 400, message: `Invalid ${key}` })
+    }
+    if (body.subdomain && !/^[a-z0-9-]+$/.test(body.subdomain)) throw createError({ statusCode: 400, message: "Invalid subdomain" })
+    if (body.feed_url) {
+      try { body.feed_url = validateFeedURL(body.feed_url) } catch { throw createError({ statusCode: 400, message: "Invalid public feed URL" }) }
+    }
     const provider = body.provider || "rss"
     const feed_url = body.feed_url || ""
     const subdomain = body.subdomain || ""
@@ -59,6 +72,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: "id is required for update" })
     }
 
+    if (!/^[\w-]{1,120}$/.test(id) || Object.prototype.hasOwnProperty.call(sources, id)) throw createError({ statusCode: 400, message: "Invalid or reserved source ID" })
     const table = await getCustomSourceTable()
     if (!table) throw createError({ statusCode: 500, message: "Database unavailable" })
 

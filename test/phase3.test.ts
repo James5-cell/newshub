@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 // --- 測項 1 & 2 所需的抽離邏輯 ---
 interface BucketItem { id: string, weight: number, name: string }
@@ -57,7 +57,7 @@ export class InlineEditQueue {
 }
 
 // --- Tests ---
-describe("Phase 3.1 穩定性加固單元測試", () => {
+describe("phase 3.1 穩定性加固單元測試", () => {
   
   it("1. 驗證 priority_weight DESC -> name ASC -> id ASC 的排序穩定性", () => {
     const bucket: BucketItem[] = [

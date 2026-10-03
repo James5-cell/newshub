@@ -115,7 +115,7 @@ const patternSize = Object.keys(patterns).length
 function toDate(date: string) {
   return date
     .toLowerCase()
-    .replace(/(^an?\s)|(\san?\s)/g, "1") // 替换 `a` 和 `an` 为 `1`
+    .replace(/^an?\s|\san?\s/g, "1") // 替换 `a` 和 `an` 为 `1`
     .replace(/几|幾/g, "3") // 如 `几秒钟前` 视作 `3秒钟前`
     .replace(/[\s,]/g, "")
 } // 移除所有空格
@@ -151,7 +151,7 @@ export function parseRelativeDate(date: string, timezone: string = "UTC") {
 
   // 将 `\d+年\d+月...\d+秒前` 分割成 `['\d+年', ..., '\d+秒前']`
 
-  const matches = theDate.match(/\D*\d+(?![:\-/]|(a|p)m)\D+/g)
+  const matches = theDate.match(/\D*\d+(?![:\-/]|(?:a|p)m)\D+/g)
   const offset = dayjs.duration({ hours: (dayjs().tz(timezone).utcOffset() - dayjs().utcOffset()) / 60 })
 
   if (matches) {

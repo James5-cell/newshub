@@ -1,5 +1,6 @@
 import process from "node:process"
 import type { Database } from "db0"
+import { initializeTable } from "./init"
 
 export interface SourceStatus {
   id: string
@@ -41,6 +42,16 @@ export class SourceStatusTable {
   async getAll(): Promise<SourceStatus[]> {
     const res = await this.db.prepare(`SELECT * FROM source_status`).all() as any
     return (res.results ?? res) as SourceStatus[]
+  }
+
+  async getMany(ids: string[]): Promise<SourceStatus[]> {
+    const rows: SourceStatus[] = []
+    for (let offset = 0; offset < ids.length; offset += 80) {
+      const batch = ids.slice(offset, offset + 80)
+      const res = await this.db.prepare(`SELECT * FROM source_status WHERE id IN (${batch.map(() => "?").join(",")})`).all(...batch) as any
+      rows.push(...(res.results ?? res) as SourceStatus[])
+    }
+    return rows
   }
 
   async set(status: SourceStatus) {
@@ -88,20 +99,16 @@ export class UserRefreshLimitsTable {
     `).run(userId, count, resetAt)
   }
 
-  async increment(userId: string, windowMs = 10 * 60 * 1000): Promise<UserRefreshLimit> {
+  async increment(userId: string, windowMs = 10 * 60 * 1000): Promise<UserRefreshLimit | undefined> {
     const now = Date.now()
-    const limit = await this.get(userId)
-    if (!limit || now >= limit.reset_at) {
-      // Window expired (or first use): start a fresh window
-      const count = 1
-      const resetAt = now + windowMs
-      await this.set(userId, count, resetAt)
-      return { user_id: userId, count, reset_at: resetAt }
-    } else {
-      const count = limit.count + 1
-      await this.set(userId, count, limit.reset_at)
-      return { user_id: userId, count, reset_at: limit.reset_at }
-    }
+    return await this.db.prepare(`
+      INSERT INTO user_refresh_limits (user_id, count, reset_at) VALUES (?, 1, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        count = CASE WHEN user_refresh_limits.reset_at <= ? THEN 1 ELSE user_refresh_limits.count + 1 END,
+        reset_at = CASE WHEN user_refresh_limits.reset_at <= ? THEN excluded.reset_at ELSE user_refresh_limits.reset_at END
+      WHERE user_refresh_limits.reset_at <= ? OR user_refresh_limits.count < 50
+      RETURNING user_id, count, reset_at
+    `).get(userId, now + windowMs, now, now, now) as UserRefreshLimit | undefined
   }
 }
 
@@ -109,7 +116,7 @@ export async function getSourceStatusTable() {
   try {
     const db = useDatabase()
     const table = new SourceStatusTable(db)
-    if (process.env.INIT_TABLE !== "false") await table.init()
+    if (process.env.INIT_TABLE !== "false") await initializeTable(db, "source-status", () => table.init())
     return table
   } catch (e) {
     logger.error("failed to init source_status table", e)
@@ -120,7 +127,7 @@ export async function getUserRefreshLimitsTable() {
   try {
     const db = useDatabase()
     const table = new UserRefreshLimitsTable(db)
-    if (process.env.INIT_TABLE !== "false") await table.init()
+    if (process.env.INIT_TABLE !== "false") await initializeTable(db, "user-refresh-limits", () => table.init())
     return table
   } catch (e) {
     logger.error("failed to init user_refresh_limits table", e)

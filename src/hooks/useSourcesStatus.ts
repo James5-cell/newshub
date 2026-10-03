@@ -1,3 +1,4 @@
+import { safeStorage } from "@shared/storage"
 import { useQuery } from "@tanstack/react-query"
 import { myFetch, safeParseString } from "~/utils"
 
@@ -21,7 +22,7 @@ export function useSourcesStatus() {
   return useQuery({
     queryKey: ["sources-status", loggedIn],
     queryFn: async () => {
-      const jwt = safeParseString(localStorage.getItem("jwt"))
+      const jwt = safeParseString(safeStorage.getItem("jwt"))
       const headers: Record<string, string> = {}
       if (jwt) {
         headers.Authorization = `Bearer ${jwt}`

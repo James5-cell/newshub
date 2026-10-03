@@ -1,3 +1,4 @@
+import process from "node:process"
 import { refreshAllSources } from "#/utils/refresh"
 
 export default defineEventHandler(async (event) => {

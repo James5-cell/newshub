@@ -1,0 +1,87 @@
+{
+  "base": {
+    "dark": "core/body_dark.png",
+    "light": "core/body_light.png"
+  },
+  "penetration_test": {
+    "backgrounds": [
+      "black",
+      "white",
+      "termgreen",
+      "brightyellow"
+    ],
+    "status": "pass"
+  },
+  "pipeline": "mascot_db v1 (Mascot Asset Pipeline Agent)",
+  "situation": "news-hub",
+  "slots": [
+    {
+      "anchor": {
+        "left": "20%",
+        "top": "48%",
+        "transform": "rotate(-4deg)",
+        "transform_origin": "50% 50%",
+        "width": "32%",
+        "z_index": 3
+      },
+      "behavior": {
+        "follow_breath": true,
+        "on_click": "page_turn",
+        "on_shock": "rattle"
+      },
+      "id": "paper",
+      "size": [
+        1191,
+        1099
+      ],
+      "src": "skins/news-hub/paper_clean.png",
+      "src_dark": "skins/news-hub/paper_dark.png"
+    },
+    {
+      "anchor": {
+        "right": "4%",
+        "top": "6%",
+        "transform": "rotate(8deg)",
+        "transform_origin": "50% 50%",
+        "width": "18%",
+        "z_index": 4
+      },
+      "behavior": {
+        "follow_breath": true,
+        "on_click": "ping",
+        "on_shock": "rattle",
+        "on_antic": "signal_scan",
+        "on_idle": "receive_pulse",
+        "pulseMs": 1100,
+        "pulseMin": 0.92,
+        "pulseMax": 1.12
+      },
+      "id": "signal",
+      "size": [
+        1353,
+        1119
+      ],
+      "src": "skins/news-hub/signal_clean.png",
+      "src_dark": "skins/news-hub/signal_dark.png"
+    }
+  ],
+  "states": {
+    "companion": {
+      "bottom_offset": "16px",
+      "idle_timeout": 10
+    },
+    "hiding": {
+      "bottom_offset": "-98px",
+      "show_sprout": true
+    },
+    "scared": {
+      "duration": 0.38,
+      "idle_timeout": 12
+    },
+    "shy": {
+      "blush": true,
+      "duration": 2.5
+    }
+  },
+  "version": "1.0.0"
+}

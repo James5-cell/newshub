@@ -1,5 +1,6 @@
 import process from "node:process"
 import type { Database } from "db0"
+import { initializeTable } from "./init"
 
 export interface CustomSource {
   id: string
@@ -48,8 +49,8 @@ export class CustomSourceTable {
     const safeAddColumn = async (col: string, def: string) => {
       try {
         await this.db.prepare(`ALTER TABLE custom_sources ADD COLUMN ${col} ${def};`).run()
-      } catch {
-        // Safe to ignore duplicate column error
+      } catch (error) {
+        if (!/duplicate column/i.test(String(error))) throw error
       }
     }
 
@@ -197,7 +198,7 @@ export async function getCustomSourceTable() {
   try {
     const db = useDatabase()
     const table = new CustomSourceTable(db)
-    if (process.env.INIT_TABLE !== "false") await table.init()
+    if (process.env.INIT_TABLE !== "false") await initializeTable(db, "custom-sources", () => table.init())
     return table
   } catch (e) {
     logger.error("failed to init custom_sources table", e)
@@ -236,8 +237,8 @@ export class SourceOverrideTable {
     const safeAddColumn = async (col: string, def: string) => {
       try {
         await this.db.prepare(`ALTER TABLE source_overrides ADD COLUMN ${col} ${def};`).run()
-      } catch {
-        // Safe to ignore duplicate column error
+      } catch (error) {
+        if (!/duplicate column/i.test(String(error))) throw error
       }
     }
 
@@ -326,7 +327,7 @@ export async function getOverrideTable() {
   try {
     const db = useDatabase()
     const table = new SourceOverrideTable(db)
-    if (process.env.INIT_TABLE !== "false") await table.init()
+    if (process.env.INIT_TABLE !== "false") await initializeTable(db, "source-overrides", () => table.init())
     return table
   } catch (e) {
     logger.error("failed to init source_overrides table", e)

@@ -2,6 +2,7 @@ import process from "node:process"
 import type { NewsItem } from "@shared/types"
 import type { Database } from "db0"
 import type { CacheInfo, CacheRow } from "../types"
+import { initializeTable } from "./init"
 
 export class Cache {
   private db
@@ -26,6 +27,7 @@ export class Cache {
       `INSERT OR REPLACE INTO cache (id, data, updated) VALUES (?, ?, ?)`,
     ).run(key, JSON.stringify(value), now)
     logger.success(`set ${key} cache`)
+    return now
   }
 
   async get(key: string): Promise<CacheInfo | undefined > {
@@ -41,9 +43,14 @@ export class Cache {
   }
 
   async getEntire(keys: string[]): Promise<CacheInfo[]> {
-    const keysStr = keys.map(k => `id = '${k}'`).join(" or ")
-    const res = await this.db.prepare(`SELECT id, data, updated FROM cache WHERE ${keysStr}`).all() as any
-    const rows = (res.results ?? res) as CacheRow[]
+    if (!keys.length) return []
+    const rows: CacheRow[] = []
+    // D1 accepts at most 100 bound parameters per statement.
+    for (let offset = 0; offset < keys.length; offset += 80) {
+      const batch = keys.slice(offset, offset + 80)
+      const res = await this.db.prepare(`SELECT id, data, updated FROM cache WHERE id IN (${batch.map(() => "?").join(",")})`).all(...batch) as any
+      rows.push(...(res.results ?? res) as CacheRow[])
+    }
 
     /**
      * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#return-object
@@ -77,7 +84,7 @@ export async function getCacheTable() {
     // logger.info("db: ", db.getInstance())
     if (process.env.ENABLE_CACHE === "false") return
     const cacheTable = new Cache(db)
-    if (process.env.INIT_TABLE !== "false") await cacheTable.init()
+    if (process.env.INIT_TABLE !== "false") await initializeTable(db, "cache", () => cacheTable.init())
     return cacheTable
   } catch (e) {
     logger.error("failed to init database ", e)

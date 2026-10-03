@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { SELAH_CWS_URLS } from "../../utils/selah-cws"
 
 export const Route = createFileRoute("/selah/extensions")({

@@ -319,6 +319,17 @@ export const originSources = {
     desc: "不一定靠谱，多看多思考",
     home: "https://kaopu.news/",
   },
+  "rthk": {
+    name: "香港电台",
+    color: "red",
+    type: "realtime",
+    interval: Time.Fast,
+    home: "https://news.rthk.hk",
+    sub: {
+      international: { title: "国际即时", column: "world" },
+      finance: { title: "财经即时", column: "finance" },
+    },
+  },
   "jin10": {
     name: "金十数据",
     column: "finance",

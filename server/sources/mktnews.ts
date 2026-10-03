@@ -34,7 +34,7 @@ const flash = defineSource(async () => {
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .map(item => ({
       id: item.id,
-      title: item.data.title || item.data.content.match(/^【([^】]*)】(.*)$/)?.[1] || item.data.content,
+      title: item.data.title || item.data.content.match(/^【([^】]*)】.*$/)?.[1] || item.data.content,
       pubDate: item.time,
       extra: {
         info: item.important === 1 ? "Important" : undefined,

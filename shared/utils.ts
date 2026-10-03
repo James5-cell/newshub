@@ -8,6 +8,8 @@ export function relativeTime(timestamp: string | number) {
   const diffInMinutes = diffInSeconds / 60
   const diffInHours = diffInMinutes / 60
 
+  if (diffInSeconds < -60) return "时间待校准"
+
   if (diffInSeconds < 60) {
     return "刚刚"
   } else if (diffInMinutes < 60) {

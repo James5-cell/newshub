@@ -10,12 +10,12 @@ const projectDir = fileURLToPath(new URL("..", import.meta.url))
 const iconsDir = join(projectDir, "public", "icons")
 async function downloadImage(url: string, outputPath: string, id: string) {
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) })
     if (!response.ok) {
       throw new Error(`${id}: could not fetch ${url}, status: ${response.status}`)
     }
 
-    const image = await (await fetch(url)).arrayBuffer()
+    const image = await response.arrayBuffer()
     fs.writeFileSync(outputPath, Buffer.from(image))
     consola.success(`${id}: downloaded successfully.`)
   } catch (error) {

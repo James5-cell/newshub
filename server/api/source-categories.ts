@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
       const allActive = await customTable.getActive()
       customSources.push(...allActive)
     }
-  } catch (e) {
+  } catch {
     // optional database
   }
 
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     const weight = ov?.priority_weight ?? 0
     const bItem = { id, weight, name: s.name }
 
-    bucketMore.push(bItem)
+    if (!s.redirect) bucketMore.push(bItem)
 
     // Build metadata mapping
     meta[id] = {
@@ -61,6 +61,9 @@ export default defineEventHandler(async (event) => {
       column_id: s.column,
       isDynamic: false
     }
+
+    // Keep alias metadata for saved layouts, but do not show duplicate cards.
+    if (s.redirect) return
 
     // Categorization Logic for Static Sources
     if (s.type === "hottest") {

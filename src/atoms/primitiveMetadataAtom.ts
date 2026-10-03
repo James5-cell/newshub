@@ -1,3 +1,4 @@
+import { safeStorage } from "@shared/storage"
 import type { PrimitiveAtom } from "jotai"
 import type { FixedColumnID, PrimitiveMetadata, SourceID } from "@shared/types"
 import type { Update } from "./types"
@@ -8,7 +9,7 @@ function createPrimitiveMetadataAtom(
   preprocess: ((stored: PrimitiveMetadata) => PrimitiveMetadata),
 ): PrimitiveAtom<PrimitiveMetadata> {
   const getInitialValue = (): PrimitiveMetadata => {
-    const item = localStorage.getItem(key)
+    const item = safeStorage.getItem(key)
     try {
       if (item) {
         const stored = JSON.parse(item) as PrimitiveMetadata
@@ -26,7 +27,7 @@ function createPrimitiveMetadataAtom(
     const nextValue = update instanceof Function ? update(get(baseAtom)) : update
     if (nextValue.updatedTime > get(baseAtom).updatedTime) {
       set(baseAtom, nextValue)
-      localStorage.setItem(key, JSON.stringify(nextValue))
+      safeStorage.setItem(key, JSON.stringify(nextValue))
     }
   })
   return derivedAtom

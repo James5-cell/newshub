@@ -1,167 +1,67 @@
 import process from "node:process"
-import { refreshAllSources, refreshSource } from "#/utils/refresh"
+import { createError, defineEventHandler, getHeader, getRequestIP, readBody, setHeader } from "h3"
+import { subtle } from "uncrypto"
+import { MAX_REFRESH_SOURCES, PUBLIC_REFRESH_LIMIT, PUBLIC_REFRESH_WINDOW, REFRESH_BATCH_SIZE } from "@shared/refresh-policy"
+import type { RefreshResponse } from "@shared/types"
+import { getRefreshControl } from "#/database/refresh-control"
 import { getUserRefreshLimitsTable } from "#/database/status"
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Rate Limit Constants
-//
-//  REGULAR users : 3 requests per 10-minute sliding window
-//  ADMIN users   : 50 requests per 10-minute window (for backend debugging)
-//
-// Changing these values here is the single source of truth – no magic numbers
-// anywhere else in this file.
-// ─────────────────────────────────────────────────────────────────────────────
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000 // 10 minutes
-const RATE_LIMIT_REGULAR = 3 // max requests per window for regular users
-const RATE_LIMIT_ADMIN = 50 // max requests per window for admins
-
-/**
- * Returns true when the current request belongs to the configured admin account.
- * Admin identity is determined by matching event.context.user.id against the
- * ADMIN_GITHUB_ID environment variable (same check used in /api/admin/* routes).
- */
-function isAdmin(event: any): boolean {
-  const adminId = process.env.ADMIN_GITHUB_ID
-  if (!adminId) return false
-  return String(event.context.user?.id) === String(adminId)
-}
+import { refreshAllSources, refreshSource, refreshSourceBatch } from "#/utils/refresh"
 
 export default defineEventHandler(async (event) => {
-  const user = event.context.user
-  if (!user || !user.id) {
-    throw createError({
-      statusCode: 401,
-      message: "Unauthorized: You must be logged in to manually refresh.",
-    })
+  setHeader(event, "Cache-Control", "no-store")
+  const body = await readBody(event)
+  const input = body?.sources ?? (body?.source ? [body.source] : null)
+  if (!Array.isArray(input) || !input.length || input.length > MAX_REFRESH_SOURCES
+    || input.some(id => typeof id !== "string" || !id || id.length > 120)) {
+    throw createError({ statusCode: 400, message: `请选择 1–${MAX_REFRESH_SOURCES} 个有效来源` })
   }
-
-  const query = getQuery(event)
-  const body = await readBody(event).catch(() => ({}))
-  const source = (body?.source || query?.source) as string | undefined
-  const sources = (body?.sources || query?.sources) as string[] | undefined
-
-  const hasSources = Array.isArray(sources) && sources.length > 0
-
-  if (!source && !hasSources) {
-    throw createError({
-      statusCode: 400,
-      message: "Bad Request: 'source' or non-empty 'sources' array parameter is required.",
-    })
-  }
-
-  // ── Determine quota based on role ──────────────────────────────────────────
-  const admin = isAdmin(event)
-  const rateLimit = admin ? RATE_LIMIT_ADMIN : RATE_LIMIT_REGULAR
-  const role = admin ? "admin" : "user"
-
-  const limitsTable = await getUserRefreshLimitsTable()
-  if (!limitsTable) {
-    // Fail-open: if the DB is unavailable, allow the request rather than
-    // blocking all users. Log the issue for observability.
-    logger.warn("Rate limit table unavailable – allowing request without enforcement")
-  }
-
-  const now = Date.now()
-
-  if (limitsTable) {
-    const limitInfo = await limitsTable.get(user.id)
-
-    // ── 429 guard ────────────────────────────────────────────────────────────
-    if (limitInfo && limitInfo.count >= rateLimit && now < limitInfo.reset_at) {
-      const secondsLeft = Math.ceil((limitInfo.reset_at - now) / 1000)
-      const minutesLeft = Math.ceil(secondsLeft / 60)
-      const displayTime = secondsLeft < 90
-        ? `${secondsLeft} second(s)`
-        : `${minutesLeft} minute(s)`
-
-      logger.warn(`[RateLimit] ${role} ${user.id} hit limit (${limitInfo.count}/${rateLimit}) – resets in ${displayTime}`)
-
-      throw createError({
-        statusCode: 429,
-        statusMessage: "Too Many Requests",
-        message: `Rate limit exceeded (${rateLimit} refreshes per ${RATE_LIMIT_WINDOW_MS / 60_000} min). Try again in ${displayTime}.`,
-        data: {
-          resetAt: limitInfo.reset_at,
-          count: limitInfo.count,
-          limit: rateLimit,
-          windowMs: RATE_LIMIT_WINDOW_MS,
-          retryAfterMs: limitInfo.reset_at - now,
-        },
-      })
+  const ids = [...new Set(input)] as string[]
+  const force = body.force === true || ids.includes("all")
+  if (force) {
+    const user = event.context.user
+    if (!user?.id || !process.env.ADMIN_GITHUB_ID || String(user.id) !== process.env.ADMIN_GITHUB_ID) {
+      throw createError({ statusCode: 403, message: "全站或强制更新仅供管理员使用，普通刷新无需登录" })
     }
-  }
-
-  // ── Increment counter (pass the shared window duration) ────────────────────
-  const newLimit = limitsTable
-    ? await limitsTable.increment(user.id, RATE_LIMIT_WINDOW_MS)
-    : { count: 1, reset_at: now + RATE_LIMIT_WINDOW_MS }
-
-  /** Shared rateLimit payload attached to every successful response */
-  const rateLimitPayload = {
-    count: newLimit.count,
-    limit: rateLimit,
-    resetAt: newLimit.reset_at,
-    windowMs: RATE_LIMIT_WINDOW_MS,
-  }
-
-  // ── Execute the refresh ────────────────────────────────────────────────────
-  try {
-    if (source === "all") {
-      logger.info(`[Refresh] ${role} ${user.id} triggered ALL-sources refresh (${newLimit.count}/${rateLimit})`)
-      const results = await refreshAllSources()
-      const succeeded = results.filter(r => r.success).length
-      const failed = results.filter(r => !r.success).length
-
-      return {
-        status: "success",
-        message: "Manual refresh of all sources completed.",
-        rateLimit: rateLimitPayload,
-        summary: { total: results.length, succeeded, failed },
-      }
+    if ((process.env.CF_PAGES && ids.includes("all")) || (!ids.includes("all") && ids.length > REFRESH_BATCH_SIZE)) {
+      throw createError({ statusCode: 400, message: `请分批更新，每批最多 ${REFRESH_BATCH_SIZE} 个来源` })
     }
-
-    if (hasSources) {
-      logger.info(`[Refresh] ${role} ${user.id} triggered refresh of ${sources!.length} sources (${newLimit.count}/${rateLimit})`)
-      const results = await Promise.all(
-        sources!.map(async (id) => {
-          try {
-            await refreshSource(id)
-            return { id, success: true }
-          } catch (e) {
-            return { id, success: false, error: (e as Error).message }
-          }
-        }),
-      )
-      const succeeded = results.filter(r => r.success).length
-      const failed = results.filter(r => !r.success).length
-
-      return {
-        status: "success",
-        message: "Manual refresh of specified sources completed.",
-        rateLimit: rateLimitPayload,
-        summary: { total: results.length, succeeded, failed },
-      }
+    const limits = await getUserRefreshLimitsTable()
+    if (!limits) throw createError({ statusCode: 503, message: "限流服务暂时不可用" })
+    const previous = await limits.get(user.id)
+    if (previous && previous.count >= 50 && Date.now() < previous.reset_at) {
+      throw createError({ statusCode: 429, message: "管理员刷新次数已达上限，请稍后重试" })
     }
-
-    // Single source
-    logger.info(`[Refresh] ${role} ${user.id} triggered refresh of "${source}" (${newLimit.count}/${rateLimit})`)
-    const result = await refreshSource(source!)
-
+    const updatedLimit = await limits.increment(user.id)
+    if (!updatedLimit) throw createError({ statusCode: 429, message: "管理员刷新次数已达上限，请稍后重试" })
+    const results = ids.includes("all")
+      ? await refreshAllSources({ force: true })
+      : await Promise.all(ids.map(async (id) => {
+        try {
+          const result = await refreshSource(id, { force: true })
+          return { id, success: result.status !== "stale" }
+        } catch (error) {
+          return { id, success: false, error: error instanceof Error ? error : new Error(String(error)) }
+        }
+      }))
     return {
       status: "success",
-      message: `Source "${source}" refreshed successfully.`,
-      rateLimit: rateLimitPayload,
-      data: {
-        id: source,
-        updatedTime: result.updatedTime,
-        items: result.items,
-      },
+      results,
+      rateLimit: { count: updatedLimit.count, limit: 50, resetAt: updatedLimit.reset_at },
     }
-  } catch (err: any) {
-    logger.error(`[Refresh] Failed for source ${source ?? sources}:`, err)
-    throw createError({
-      statusCode: 500,
-      message: err.message || "Failed to refresh source.",
-    })
   }
+
+  // Only trust Cloudflare's connecting IP when actually deployed to Cloudflare.
+  // Forwarded headers from arbitrary clients must not grant fresh quotas.
+  const ip = (process.env.CF_PAGES ? getHeader(event, "cf-connecting-ip") : undefined)
+    || getRequestIP(event) || "unknown"
+  const digest = await subtle.digest("SHA-256", new TextEncoder().encode(ip))
+  const identity = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("")
+  const control = await getRefreshControl()
+  const { allowed, ...rateLimit } = await control.consume(identity, Date.now(), PUBLIC_REFRESH_LIMIT, PUBLIC_REFRESH_WINDOW)
+  if (!allowed) {
+    setHeader(event, "Retry-After", Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000)))
+    throw createError({ statusCode: 429, message: "刷新过于频繁，请稍后重试", data: { rateLimit } })
+  }
+  const result = await refreshSourceBatch(ids)
+  return { status: "success", ...result, rateLimit } satisfies RefreshResponse
 })

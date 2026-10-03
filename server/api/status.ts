@@ -1,6 +1,6 @@
+import { sources } from "@shared/sources"
 import { getSourceStatusTable, getUserRefreshLimitsTable } from "#/database/status"
 import { getCustomSourceTable } from "#/database/source-config"
-import { sources } from "@shared/sources"
 
 export default defineEventHandler(async (event) => {
   try {
@@ -41,13 +41,13 @@ export default defineEventHandler(async (event) => {
         if (limitInfo) {
           userLimit = {
             count: limitInfo.count,
-            limit: 3,
+            limit: 50,
             resetAt: limitInfo.reset_at
           }
         } else {
           userLimit = {
             count: 0,
-            limit: 3,
+            limit: 50,
             resetAt: 0
           }
         }

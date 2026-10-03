@@ -1,8 +1,21 @@
 import process from "node:process"
 import { SignJWT } from "jose"
+import { verifyOAuthSession } from "#/utils/oauth-session"
 import { UserTable } from "#/database/user"
 
 export default defineEventHandler(async (event) => {
+  const query = getQuery(event)
+  const session = getCookie(event, "newshub_oauth")
+  deleteCookie(event, "newshub_oauth", { path: "/" })
+  if (!session || typeof query.state !== "string" || typeof query.code !== "string") {
+    throw createError({ statusCode: 400, message: "Invalid OAuth callback" })
+  }
+  let verifier: string
+  try {
+    verifier = await verifyOAuthSession(session, query.state, process.env.JWT_SECRET!, process.env.G_CLIENT_ID!)
+  } catch {
+    throw createError({ statusCode: 400, message: "OAuth session expired or state mismatch" })
+  }
   const db = useDatabase()
   const userTable = db ? new UserTable(db) : undefined
   if (!userTable) throw new Error("db is not defined")
@@ -19,7 +32,8 @@ export default defineEventHandler(async (event) => {
       body: {
         client_id: process.env.G_CLIENT_ID,
         client_secret: process.env.G_CLIENT_SECRET,
-        code: getQuery(event).code,
+        code: query.code,
+        code_verifier: verifier,
       },
       headers: {
         accept: "application/json",
@@ -48,25 +62,15 @@ export default defineEventHandler(async (event) => {
   const jwtToken = await new SignJWT({
     id: userID,
     type: "github",
+    name: userInfo.name,
+    avatar: userInfo.avatar_url,
   })
-    .setExpirationTime("60d")
+    .setExpirationTime("7d")
     .setProtectedHeader({ alg: "HS256" })
     .sign(new TextEncoder().encode(process.env.JWT_SECRET!))
 
-  // nitro 有 bug，在 cloudflare 里没法 set cookie
-  // seconds
-  // const maxAge = 60 * 24 * 60 * 60
-  // setCookie(event, "user_jwt", jwtToken, { maxAge })
-  // setCookie(event, "user_avatar", userInfo.avatar_url, { maxAge })
-  // setCookie(event, "user_name", userInfo.name, { maxAge })
-
-  const params = new URLSearchParams({
-    login: "github",
-    jwt: jwtToken,
-    user: JSON.stringify({
-      avatar: userInfo.avatar_url,
-      name: userInfo.name,
-    }),
+  setCookie(event, "newshub_session", jwtToken, {
+    httpOnly: true, secure: process.env.CF_PAGES === "1" || getRequestURL(event).protocol === "https:", sameSite: "lax", path: "/", maxAge: 7 * 86400,
   })
-  return sendRedirect(event, `/?${params.toString()}`)
+  return sendRedirect(event, "/")
 })

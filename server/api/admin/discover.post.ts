@@ -1,4 +1,7 @@
+import process from "node:process"
 import * as cheerio from "cheerio"
+import { fetchFeed } from "#/utils/feed-fetch"
+import { validateFeedURL } from "#/utils/feed-url"
 
 function assertAdmin(event: any) {
   const adminId = process.env.ADMIN_GITHUB_ID
@@ -25,7 +28,8 @@ export default defineEventHandler(async (event) => {
     rawUrl = `https://${rawUrl}`
   }
 
-  const targetUrl = rawUrl
+  let targetUrl: string
+  try { targetUrl = validateFeedURL(rawUrl) } catch { throw createError({ statusCode: 400, message: "Invalid public feed URL" }) }
 
   try {
     // Validate targetUrl format
@@ -41,7 +45,7 @@ export default defineEventHandler(async (event) => {
     let response: any
     let fetchError: any = null
     try {
-      response = await myFetch(targetUrl, { parseResponse: (txt) => txt })
+      response = await fetchFeed(targetUrl)
     } catch (err: any) {
       fetchError = err
     }
