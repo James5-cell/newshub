@@ -58,7 +58,7 @@
 .news-mascot-signal { opacity: .84; }
 .news-mascot-signal img { transform-origin: center; animation: news-signal-receive var(--news-signal-pulse-ms, 1100ms) ease-in-out infinite; }
 .news-mascot-eyes { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; overflow: visible; }
-.news-mascot-eye { animation: news-mascot-blink 5.2s ease-in-out infinite; }
+.news-mascot-eye { position:absolute; display:block; transform-origin:center; will-change:transform; animation: news-mascot-blink 5.2s ease-in-out infinite; }
 .news-mascot-eye:nth-child(2) { animation-delay: 120ms; }
 .news-mascot-eye-halo { fill: #f9f8f5; stroke: #242423; stroke-width: 13; }
 .news-mascot-eye-moon { fill: #111110; }
@@ -114,3 +114,11 @@
     transition-duration: 1ms !important;
   }
 }
+
+.news-mascot-eye svg { display:block; width:100%; height:100%; }
+.news-mascot-core { will-change:transform; contain:layout style; }
+.news-mascot-plate { transform:translateZ(0); }
+.news-mascot-sprout, .news-mascot-signal img { will-change:transform; }
+.news-mascot-dock[data-render-paused="true"] *,
+.news-mascot-dock[data-render-paused="true"] *::before,
+.news-mascot-dock[data-render-paused="true"] *::after { animation-play-state:paused!important; }

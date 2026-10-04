@@ -21,6 +21,8 @@ export function NewsNowMascot() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const signalsRef = useRef<MascotSignal[]>([])
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const dockRef = useRef<HTMLElement>(null)
+  const [renderPaused, setRenderPaused] = useState(false)
 
   useEffect(() => {
     let storage: Storage | null = null
@@ -52,8 +54,11 @@ export function NewsNowMascot() {
     }
     let lastPointer = { x: 0, y: 0, at: 0 }
     let lastPointerActivityAt = 0
+    let lastPointerSampleAt = 0
     const onPointerMove = (event: PointerEvent) => {
       const now = Date.now()
+      if (now - lastPointerSampleAt < mascotConfig.scheduler.tickMs) return
+      lastPointerSampleAt = now
       const current = { x: event.clientX, y: event.clientY, at: now }
       if (now - lastPointerActivityAt >= 1_000) {
         signalsRef.current.push({ type: "pointer_activity", near: false })
@@ -71,7 +76,24 @@ export function NewsNowMascot() {
       }
       lastPointer = current
     }
-    const onVisibility = () => signalsRef.current.push({ type: "document_hidden", value: document.hidden })
+    let interval: number | undefined
+    let intersecting = true
+    const step = () => {
+      engine.tick(Date.now(), signalsRef.current.splice(0), motionQuery.matches)
+      if (engine.consumeChanged()) setSnapshot(engine.snapshot())
+    }
+    const onVisibility = () => {
+      setRenderPaused(document.hidden || !intersecting)
+      signalsRef.current.push({ type: "document_hidden", value: document.hidden })
+      step()
+      if (interval !== undefined) window.clearInterval(interval)
+      interval = document.hidden ? undefined : window.setInterval(step, mascotConfig.scheduler.tickMs)
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      intersecting = entry.isIntersecting
+      setRenderPaused(document.hidden || !intersecting)
+    })
+    if (dockRef.current) observer.observe(dockRef.current)
     const onFullscreen = () => signalsRef.current.push({ type: "fullscreen", value: Boolean(document.fullscreenElement) })
     const onFocusIn = (event: FocusEvent) => signalsRef.current.push({ type: "busy", value: isEditing(event.target as Element) })
     const onFocusOut = (event: FocusEvent) => {
@@ -89,13 +111,9 @@ export function NewsNowMascot() {
     onFullscreen()
     signalsRef.current.push({ type: "busy", value: isEditing(document.activeElement) })
 
-    const interval = window.setInterval(() => {
-      engine.tick(Date.now(), signalsRef.current.splice(0), motionQuery.matches)
-      if (engine.consumeChanged()) setSnapshot(engine.snapshot())
-    }, mascotConfig.scheduler.tickMs)
-
     return () => {
-      window.clearInterval(interval)
+      if (interval !== undefined) window.clearInterval(interval)
+      observer.disconnect()
       themeObserver.disconnect()
       document.removeEventListener("visibilitychange", onVisibility)
       document.removeEventListener("fullscreenchange", onFullscreen)
@@ -125,7 +143,7 @@ export function NewsNowMascot() {
   } as CSSProperties
 
   return (
-    <aside aria-label="NewsNow mascot" className="news-mascot-dock" data-mode={snapshot.mode}
+    <aside ref={dockRef} data-render-paused={renderPaused || snapshot.mode === "guarded" || snapshot.mode === "shy_wait" ? "true" : "false"} aria-label="NewsNow mascot" className="news-mascot-dock" data-mode={snapshot.mode}
       data-behavior={snapshot.behavior ?? "idle"} data-theme={theme} style={style}
       onTransitionEnd={(event) => {
         if (event.target === event.currentTarget && event.propertyName === "transform")
@@ -169,13 +187,20 @@ export function NewsNowMascot() {
               data-slot-antic={mascotConfig.slots.signal.behavior.on_antic}>
               <img src={signal} alt="" draggable={false} />
             </span>
-            <svg className="news-mascot-eyes" viewBox={`0 0 ${mascotConfig.core.width} ${mascotConfig.core.height}`}>
-              {mascotConfig.core.eyes.map((eye, index) => <g className="news-mascot-eye" key={index}
-                style={{ transformOrigin: `${eye.x}px ${eye.y}px` }}>
-                <circle className="news-mascot-eye-halo" cx={eye.x} cy={eye.y} r={eye.haloRadius} />
-                <circle className="news-mascot-eye-moon" cx={eye.x} cy={eye.y} r={eye.moonRadius} />
-              </g>)}
-            </svg>
+            <span className="news-mascot-eyes">
+              {mascotConfig.core.eyes.map((eye,index) => {
+                const extent=eye.haloRadius+6.5
+                return <span className="news-mascot-eye" key={index} style={{
+                  left:`${(eye.x-extent)/mascotConfig.core.width*100}%`,
+                  top:`${(eye.y-extent)/mascotConfig.core.height*100}%`,
+                  width:`${extent*2/mascotConfig.core.width*100}%`,
+                  height:`${extent*2/mascotConfig.core.height*100}%`,
+                }}><svg viewBox={`0 0 ${extent*2} ${extent*2}`}>
+                  <circle className="news-mascot-eye-halo" cx={extent} cy={extent} r={eye.haloRadius}/>
+                  <circle className="news-mascot-eye-moon" cx={extent} cy={extent} r={eye.moonRadius}/>
+                </svg></span>
+              })}
+            </span>
             <span className="news-mascot-cheek news-mascot-cheek-left" />
             <span className="news-mascot-cheek news-mascot-cheek-right" />
           </span>

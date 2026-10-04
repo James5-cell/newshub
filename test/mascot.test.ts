@@ -37,3 +37,16 @@ describe("newsNow mascot input decoder", () => {
     expect(sawScan).toBe(true)
   })
 })
+
+it("keeps hiding through intermediate ticks and resumes only after the hidden hold", () => {
+  const pet = new MascotEngine(null, 0)
+  for (const at of [0,100,200]) pet.tick(at,[{type:"tap",at,anchorX:78}],false)
+  pet.tick(1180,[],false)
+  expect(pet.snapshot().mode).toBe("shy_hide")
+  pet.tick(1280,[{type:"scroll"},{type:"hover",anchorX:78}],false)
+  expect(pet.snapshot().mode).toBe("shy_hide")
+  pet.tick(1830,[],false)
+  expect(pet.snapshot().mode).toBe("shy_wait")
+  pet.tick(4230,[],false)
+  expect(pet.snapshot().mode).toBe("rest")
+})

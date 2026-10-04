@@ -3,13 +3,13 @@ export const mascotConfig = {
   version: "3.0.0-news-hub",
   storageKey: "postsoma-news-hub-mascot-v3",
   core: {
-    light: "/mascot/core/plate_light.png",
-    dark: "/mascot/core/plate_dark.png",
+    light: "/mascot/optimized/plate_light.webp",
+    dark: "/mascot/optimized/plate_dark.webp",
     width: 1122,
     height: 1228,
     sprout: {
-      light: "/mascot/core/sprout_light.png",
-      dark: "/mascot/core/sprout_dark.png",
+      light: "/mascot/optimized/sprout_light.webp",
+      dark: "/mascot/optimized/sprout_dark.webp",
       left: "43.94%",
       top: "0%",
       displayWidth: "12.03%",
@@ -23,15 +23,15 @@ export const mascotConfig = {
   },
   slots: {
     paper: {
-      light: "/mascot/skins/news-hub/paper_clean.png",
-      dark: "/mascot/skins/news-hub/paper_dark.png",
+      light: "/mascot/optimized/paper_clean.webp",
+      dark: "/mascot/optimized/paper_dark.webp",
       left: "20%", top: "48%", width: "32%", zIndex: 3,
       pivot: "50% 50%",
       behavior: { follow_breath: true, on_click: "page_turn", on_shock: "rattle" },
     },
     signal: {
-      light: "/mascot/skins/news-hub/signal_clean.png",
-      dark: "/mascot/skins/news-hub/signal_dark.png",
+      light: "/mascot/optimized/signal_clean.webp",
+      dark: "/mascot/optimized/signal_dark.webp",
       right: "4%", top: "6%", width: "18%", zIndex: 4,
       pivot: "50% 50%",
       behavior: { follow_breath: true, on_idle: "receive_pulse", pulseMs: 1100, pulseMin: 0.92, pulseMax: 1.12, on_click: "ping", on_shock: "rattle", on_antic: "signal_scan" },
