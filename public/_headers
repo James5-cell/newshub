@@ -1,0 +1,23 @@
+/swx.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/pwa-update-migration.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache
+
+/c/*
+  Cache-Control: no-cache
+
+/selah*
+  Cache-Control: no-cache
+
+/about
+  Cache-Control: no-cache
+
+/admin
+  Cache-Control: no-cache

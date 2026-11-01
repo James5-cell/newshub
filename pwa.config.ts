@@ -3,6 +3,7 @@ import type { VitePWAOptions } from "vite-plugin-pwa"
 import { VitePWA } from "vite-plugin-pwa"
 
 const pwaOption: Partial<VitePWAOptions> = {
+  registerType: "autoUpdate",
   includeAssets: [
     "favicon.ico",
     "favicon.svg",
@@ -50,6 +51,7 @@ const pwaOption: Partial<VitePWAOptions> = {
     ],
   },
   workbox: {
+    importScripts: ["/pwa-update-migration.js"],
     navigateFallbackDenylist: [/^\/api/],
   },
   devOptions: {
