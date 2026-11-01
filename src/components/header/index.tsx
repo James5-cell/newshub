@@ -9,6 +9,8 @@ function GoTop() {
     <button
       type="button"
       title="Go To Top"
+      aria-label="返回顶部"
+      tabIndex={ok ? 0 : -1}
       className={$("i-ph:arrow-fat-up-duotone", ok ? "op-50 btn" : "op-0")}
       onClick={goToTop}
     />
@@ -21,6 +23,7 @@ function Search() {
     <button
       type="button"
       title="Search (⌘K)"
+      aria-label="搜索（⌘K）"
       className={$("i-ph:magnifying-glass-duotone btn")}
       onClick={() => toggle()}
     />
@@ -30,7 +33,7 @@ function Search() {
 export function Header() {
   const currentId = useAtomValue(currentColumnIDAtom)
   const location = useLocation()
-  const isSelah = location.pathname.startsWith("/selah")
+  const isNewsPage = location.pathname === "/" || location.pathname.startsWith("/c/")
 
   return (
     <>
@@ -69,7 +72,7 @@ export function Header() {
       </span>
 
       <span className="justify-self-center">
-        {!isSelah && (
+        {isNewsPage && (
           <span className="hidden md:(inline-block)">
             <NavBar />
           </span>
@@ -77,7 +80,7 @@ export function Header() {
       </span>
 
       <span className="justify-self-end flex gap-4 items-center">
-        {!isSelah && (
+        {isNewsPage && (
           <div className="hidden md:flex items-center gap-3 text-sm font-medium mr-1">
             <Link
               to="/c/$column"
@@ -95,7 +98,7 @@ export function Header() {
           </div>
         )}
 
-        <div className="flex gap-2 items-center text-lg op-60">
+        <div className="flex gap-2 items-center text-lg">
           <Search />
           <GoTop />
           <Menu />

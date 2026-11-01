@@ -1,5 +1,4 @@
 import { Command } from "cmdk"
-import { useMount } from "react-use"
 import type { SourceID } from "@shared/types"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -70,7 +69,7 @@ export function SearchBar() {
     return () => clearTimeout(handler)
   }, [query])
 
-  const { data: searchResults, isFetching } = useQuery({
+  const { data: searchResults, isFetching, isError } = useQuery({
     queryKey: ["search", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return null
@@ -128,8 +127,7 @@ export function SearchBar() {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState<SourceID>("github-trending-today")
 
-  useMount(() => {
-    inputRef?.current?.focus()
+  useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
@@ -140,7 +138,7 @@ export function SearchBar() {
     return () => {
       document.removeEventListener("keydown", keydown)
     }
-  })
+  }, [toggle])
 
   // Synchronize CMDK value change to right pane preview card
   const handleValueChange = (v: string) => {
@@ -159,30 +157,46 @@ export function SearchBar() {
     }
   }
 
-  const hasSearchQuery = debouncedQuery.trim().length > 0
+  const hasSearchQuery = query.trim().length > 0
+  const searching = hasSearchQuery && (query !== debouncedQuery || isFetching)
+  const showPreview = !hasSearchQuery || (!searching && !isError && !!searchResults && (
+    searchResults.sources.some(source => source.id === value) || searchResults.items.some(item => item.sourceId === value)
+  ))
 
   return (
     <Command.Dialog
       open={opened}
       onOpenChange={toggle}
+      label="搜索新闻和来源"
       value={value}
       onValueChange={handleValueChange}
       shouldFilter={false} // Use backend search results directly
     >
-      <Command.Input
-        ref={inputRef}
-        autoFocus
-        placeholder="搜索你想要的 (可搜订阅源、中英文别名或具体文章内容...)"
-        value={query}
-        onValueChange={setQuery}
-      />
+      <div className="flex items-center border-b border-white/10 pr-3">
+        <Command.Input
+          ref={inputRef}
+          autoFocus
+          aria-label="搜索新闻和来源"
+          placeholder="搜索新闻或来源"
+          value={query}
+          onValueChange={setQuery}
+        />
+        <button type="button" onClick={() => toggle(false)} aria-label="关闭搜索" className="w-10 h-10 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">
+          <span className="i-ph:x text-lg" aria-hidden="true" />
+        </button>
+      </div>
+      <p className="px-4 pt-3 text-xs text-neutral-400">选择来源可关注或取消关注；选择新闻可打开原文。</p>
       <div className="md:flex pt-2">
         <OverlayScrollbar defer className="overflow-y-auto md:min-w-275px">
           <Command.List>
-            {hasSearchQuery && searchResults ? (
+            {searching ? (
+              <p className="px-1 py-4 text-sm text-neutral-400" role="status">正在搜索…</p>
+            ) : hasSearchQuery && isError ? (
+              <p className="px-1 py-4 text-sm text-neutral-400" role="status">搜索暂时不可用，请稍后重试。</p>
+            ) : hasSearchQuery && searchResults ? (
               <>
                 {searchResults.sources.length > 0 && (
-                  <Command.Group heading="直达来源 (Sources)">
+                  <Command.Group heading="来源">
                     {searchResults.sources.map(src => (
                       <SourceItem
                         key={src.id}
@@ -199,7 +213,7 @@ export function SearchBar() {
                   </Command.Group>
                 )}
                 {searchResults.items.length > 0 && (
-                  <Command.Group heading="相关内容 (Articles)">
+                  <Command.Group heading="相关新闻">
                     {searchResults.items.map(item => (
                       <NewsItemRow
                         key={item.id}
@@ -210,7 +224,7 @@ export function SearchBar() {
                   </Command.Group>
                 )}
                 {searchResults.sources.length === 0 && searchResults.items.length === 0 && !isFetching && (
-                  <Command.Empty> 没有找到，可以前往 Github 提 issue </Command.Empty>
+                  <p className="px-1 py-4 text-sm text-neutral-400" role="status">没有找到结果，试试其他关键词。</p>
                 )}
               </>
             ) : (
@@ -225,7 +239,9 @@ export function SearchBar() {
           </Command.List>
         </OverlayScrollbar>
         <div className="flex-1 pt-2 px-4 min-w-350px max-md:hidden">
-          <CardWrapper id={value} />
+          {showPreview
+            ? <CardWrapper id={value} />
+            : <p className="py-6 text-sm text-neutral-400">选择一个结果，查看对应来源。</p>}
         </div>
       </div>
     </Command.Dialog>
@@ -241,6 +257,7 @@ function SourceItem({ item, metadata }: {
     <Command.Item
       keywords={[item.name, item.title ?? "", item.pinyin]}
       value={item.id}
+      aria-label={`${item.name}，${isFocused ? "已关注，选择以取消关注" : "选择以关注"}`}
       className="flex justify-between items-center p-2 rounded-md hover:bg-white/[0.05] aria-selected:bg-white/[0.08]"
       onSelect={toggleFocus}
     >
@@ -252,7 +269,10 @@ function SourceItem({ item, metadata }: {
         <span>{item.name}</span>
         <span className="text-xs text-neutral-400/80 self-end mb-3px">{item.title}</span>
       </span>
-      <span className={$(isFocused ? "i-ph-star-fill" : "i-ph-star-duotone", "bg-primary op-40")}></span>
+      <span className="flex items-center gap-1 text-xs text-neutral-400">
+        <span className={$(isFocused ? "i-ph-star-fill text-amber-400" : "i-ph-star-duotone")} aria-hidden="true" />
+        {isFocused ? "已关注" : "关注"}
+      </span>
     </Command.Item>
   )
 }
@@ -266,7 +286,7 @@ function NewsItemRow({ item, metadata }: { item: any, metadata: any }) {
       onSelect={() => {
         const width = window.innerWidth
         const url = width < 768 ? item.mobileUrl || item.url : item.url
-        window.open(url, "_blank")
+        window.open(url, "_blank", "noopener,noreferrer")
       }}
     >
       <span className="flex gap-2 items-center min-w-0 flex-1">

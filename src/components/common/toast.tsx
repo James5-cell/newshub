@@ -1,6 +1,5 @@
 import { useCallback, useRef } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { useMount } from "react-use"
 import type { ToastItem } from "~/atoms/types"
 import { Timer } from "~/utils"
 
@@ -58,12 +57,12 @@ function Item({ info }: { info: ToastItem }) {
 
   const timer = useRef<Timer | undefined>(undefined)
 
-  useMount(() => {
+  useEffect(() => {
     timer.current = new Timer(() => {
       hidden()
     }, info.duration ?? 4000)
     return () => timer.current?.clear()
-  })
+  }, [hidden, info.duration])
 
   const [hovered, setHovered] = useState(false)
   useEffect(() => {
@@ -113,6 +112,7 @@ function Item({ info }: { info: ToastItem }) {
       <button
         type="button"
         title="关闭"
+        aria-label="关闭通知"
         className="flex-shrink-0 text-neutral-500 hover:text-white transition-colors p-0.5 rounded-md"
         onClick={() => hidden(false)}
       >

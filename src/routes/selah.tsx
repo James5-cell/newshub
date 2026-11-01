@@ -9,30 +9,22 @@ function SelahLayout() {
   const currentPath = location.pathname
 
   const navItems = [
-    { label: "Overview", to: "/selah" as any, pathMatch: (p: string) => p === "/selah" || p === "/selah/" },
-    { label: "Extensions", to: "/selah/extensions" as any, pathMatch: (p: string) => p.startsWith("/selah/extensions") },
-    { label: "Use Cases", to: "/selah/guide" as any, pathMatch: (p: string) => p.startsWith("/selah/guide") },
+    { label: "概览", to: "/selah" as const, pathMatch: (p: string) => p === "/selah" || p === "/selah/" },
+    { label: "全部工具", to: "/selah/extensions" as const, pathMatch: (p: string) => p.startsWith("/selah/extensions") },
+    { label: "使用指南", to: "/selah/guide" as const, pathMatch: (p: string) => p.startsWith("/selah/guide") },
   ]
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-8">
       {/* Product Container Header in Page Body */}
-      <section className="space-y-6 border-b border-white/10 pb-4">
+      <section className="space-y-5 border-b border-white/10">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           {/* Selah Product Brand Title */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded border border-red-500/20">
-                Selah System
-              </span>
-              <span className="text-xs text-neutral-400 font-mono">
-                Open Web Reading System
-              </span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold font-brand tracking-tight text-white flex items-center gap-3">
-              <span className="i-ph:circles-three-plus-duotone text-red-400 text-3xl" />
-              Selah Framework
-            </h1>
+            <Link to="/selah" className="text-xl font-semibold text-white inline-flex items-center gap-2">
+              <span className="i-ph:circles-three-plus-duotone text-red-400 text-xl" aria-hidden="true" />
+              Selah 阅读工具
+            </Link>
           </div>
         </div>
 
@@ -61,9 +53,9 @@ function SelahLayout() {
       </section>
 
       {/* Main Content Area */}
-      <main id="selah-main-content">
+      <div id="selah-main-content">
         <Outlet />
-      </main>
+      </div>
     </div>
   )
 }

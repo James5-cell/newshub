@@ -11,6 +11,7 @@ import { Footer } from "~/components/footer"
 import { Toast } from "~/components/common/toast"
 import { SearchBar } from "~/components/common/search-bar"
 import { NewsNowMascot } from "~/components/mascot"
+import { mascotHiddenAtom } from "~/atoms"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -27,6 +28,7 @@ function NotFoundComponent() {
 }
 
 function RootComponent() {
+  const mascotHidden = useAtomValue(mascotHiddenAtom)
   useOnReload()
   useSync()
   usePWA()
@@ -47,7 +49,7 @@ function RootComponent() {
             "sticky top-0 z-10 backdrop-blur-md",
           ])}
           style={{
-            gridTemplateColumns: "50px auto 50px",
+            gridTemplateColumns: "1fr auto 1fr",
           }}
         >
           <Header />
@@ -67,7 +69,7 @@ function RootComponent() {
       </GlobalOverlayScrollbar>
       <Toast />
       <SearchBar />
-      <NewsNowMascot />
+      {!mascotHidden && <NewsNowMascot />}
       {import.meta.env.DEV && (
         <>
           <ReactQueryDevtools buttonPosition="bottom-left" />

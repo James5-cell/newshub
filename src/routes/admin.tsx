@@ -41,11 +41,11 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 function AdminPage() {
-  const { loggedIn, enableLogin } = useLogin()
+  const { loggedIn, enableLogin, login } = useLogin()
   const queryClient = useQueryClient()
   const toaster = useToast()
 
-  const { data: adminCheck, isLoading: checkingAdmin } = useQuery({
+  const { data: adminCheck, isLoading: checkingAdmin, isError: adminCheckError, refetch: retryAdminCheck } = useQuery({
     queryKey: ["admin-check"],
     queryFn: async () => {
       const res: { isAdmin: boolean } = await myFetch("/admin/check", {
@@ -158,7 +158,8 @@ function AdminPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <span className="i-ph:lock-duotone text-3xl op-20" />
-        <p className="text-sm op-40 tracking-wide">請先登入 GitHub 帳號</p>
+        <p className="text-sm text-neutral-300">{enableLogin ? "請先登入 GitHub 帳號" : "目前未開放登入，無法進入來源管理。"}</p>
+        {enableLogin && <button type="button" onClick={login} className="text-sm text-red-300 hover:text-red-200 underline underline-offset-4">登入 GitHub</button>}
         <Link to="/" className="text-xs op-50 hover:op-80 transition-opacity">
           返回首頁
         </Link>
@@ -168,8 +169,19 @@ function AdminPage() {
 
   if (checkingAdmin) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] gap-3" role="status">
         <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
+        <span className="text-sm text-neutral-400">正在確認管理員權限…</span>
+      </div>
+    )
+  }
+
+  if (adminCheckError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" role="status">
+        <p className="text-sm text-neutral-300">無法確認管理員權限，請稍後重試。</p>
+        <button type="button" onClick={() => retryAdminCheck()} className="text-sm text-red-300 hover:text-red-200 underline underline-offset-4">重試</button>
+        <Link to="/" className="text-sm text-neutral-400 hover:text-white">返回首頁</Link>
       </div>
     )
   }
@@ -189,10 +201,10 @@ function AdminPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 pb-24 pt-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-12">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
         <div>
           <h1 className="text-xl font-medium tracking-tight op-90">來源管理</h1>
-          <p className="text-xs op-30 mt-1">管理動態與靜態來源的分類、權重與顯隱</p>
+          <p className="text-sm text-neutral-400 mt-1">管理動態與靜態來源的分類、權重與顯隱</p>
         </div>
         <div className="flex items-center gap-3">
           {!showForm && !editingSource && (
@@ -818,6 +830,9 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected,
             type="button"
             onClick={onToggle}
             disabled={disabled}
+            role="switch"
+            aria-checked={!!source.is_active}
+            aria-label={`${source.is_active ? "停用" : "啟用"}${source.name}`}
             className={$(
               "relative w-8 h-[18px] rounded-full transition-all duration-300 cursor-pointer flex-shrink-0",
               source.is_active ? "bg-white/15" : "bg-white/5",
@@ -1420,6 +1435,9 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
         type="button"
         onClick={onToggle}
         disabled={isUpdating}
+        role="switch"
+        aria-checked={!!source.is_active}
+        aria-label={`${source.is_active ? "停用" : "啟用"}${source.name}`}
         className={$(
           "relative w-8 h-[18px] rounded-full transition-all duration-300 cursor-pointer flex-shrink-0",
           source.is_active ? "bg-white/15" : "bg-white/5",

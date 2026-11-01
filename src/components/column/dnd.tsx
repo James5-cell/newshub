@@ -10,6 +10,7 @@ import { motion } from "framer-motion"
 import { useWindowSize } from "react-use"
 import { isMobile } from "react-device-detect"
 import { sources } from "@shared/sources"
+import { Link } from "@tanstack/react-router"
 import { DndContext } from "../common/dnd"
 import { useSortable } from "../common/dnd/useSortable"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
@@ -108,7 +109,19 @@ export function Dnd() {
     return Math.min(width - 32, WIDTH)
   }, [width])
 
-  if (!allItems.length) return null
+  if (!allItems.length) {
+    return (
+      <div className="py-16 px-4 text-center text-sm text-neutral-400" role="status">
+        {currentColumnID === "focus" ? (
+          <>
+            <p className="text-base text-neutral-200 mb-2">还没有关注的来源</p>
+            <p>在新闻来源卡片上点击星标，即可在这里查看。</p>
+            <Link to="/c/$column" params={{ column: "hottest" }} className="inline-block mt-4 text-red-300 hover:text-red-200 underline underline-offset-4">浏览热门来源</Link>
+          </>
+        ) : catData || isCatError ? "这个分类暂时没有内容。" : "正在加载来源…"}
+      </div>
+    )
+  }
 
   return (
     <DndWrapper items={allItems} setMetadata={setMetadata} columnId={currentColumnID} isSingleColumn={isMobile}>
@@ -125,20 +138,6 @@ export function Dnd() {
             : {
                 gridTemplateColumns: `repeat(auto-fill, minmax(${minWidth}px, 1fr))`,
               }}
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: {
-              opacity: 0,
-            },
-            visible: {
-              opacity: 1,
-              transition: {
-                delayChildren: 0.1,
-                staggerChildren: 0.1,
-              },
-            },
-          }}
         >
           {allItems.map((id, index) => (
             <motion.li
@@ -148,16 +147,6 @@ export function Dnd() {
               transition={{
                 type: "tween",
                 duration: AnimationDuration / 1000,
-              }}
-              variants={{
-                hidden: {
-                  y: 20,
-                  opacity: 0,
-                },
-                visible: {
-                  y: 0,
-                  opacity: 1,
-                },
               }}
             >
               <SortableCardWrapper id={id} />

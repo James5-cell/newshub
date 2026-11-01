@@ -14,7 +14,7 @@ export interface SelahExtensionItem {
   description: string
   cwsUrl: string
   icon: string
-  guideAnchor: any
+  guideAnchor: string
   highlights: string[]
 }
 
@@ -139,17 +139,11 @@ function SelahExtensionsPage() {
     <div className="space-y-12 py-2">
       {/* Page Header */}
       <section className="space-y-3 border-b border-white/10 pb-8">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded border border-red-500/20">
-            Official Chrome Extensions Suite
-          </span>
-          <span className="text-xs text-neutral-400 font-mono">Manifest V3 · 7 Tools</span>
-        </div>
-        <h1 className="text-2xl md:text-4xl font-bold font-brand tracking-tight text-white">
-          Selah 阅读工具系统扩展清单
+        <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
+          找到适合你的阅读工具
         </h1>
         <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed">
-          分为“内容与注意力管理”（Reading Utilities）与“页面与行间即时工具”（In-Reading Tools）两大组。各扩展均可独立使用或按需组合，不设强制线性流程。
+          这七款 Chrome 扩展可以单独使用，也可以按你的阅读习惯组合。
         </p>
       </section>
 
@@ -166,18 +160,10 @@ function SelahExtensionsPage() {
             >
             {/* Group Header */}
             <div className="space-y-1.5 border-b border-white/10 pb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-red-400/90 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
-                  {group.groupCode}
-                </span>
-                <span className="text-xs text-neutral-500 font-mono">
-                  {group.subtitle}
-                </span>
-              </div>
               <h2 id={`group-title-${group.id}`} className="text-xl font-bold text-white tracking-tight">
                 {group.title}
               </h2>
-              <p className="text-xs text-neutral-400 leading-relaxed max-w-2xl">
+              <p className="text-sm text-neutral-400 leading-relaxed max-w-2xl">
                 {group.description}
               </p>
             </div>
@@ -192,17 +178,14 @@ function SelahExtensionsPage() {
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
                     <div className="flex items-start gap-4">
-                      <span className="text-xs font-mono text-red-400 bg-white/[0.04] px-2.5 py-1 rounded border border-white/10 flex-shrink-0 mt-0.5">
-                        {ext.number}
-                      </span>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className={`${ext.icon} text-xl text-red-400`} aria-hidden="true" />
                           <h3 id={`ext-title-${ext.id}`} className="text-lg font-bold text-white tracking-tight">
-                            {ext.actionTitle}
+                            {ext.name}
                           </h3>
-                          <span className="text-xs text-neutral-400 font-mono hidden sm:inline">
-                            ({ext.name})
+                          <span className="text-sm text-neutral-400">
+                            {ext.actionTitle}
                           </span>
                         </div>
                         <p className="text-xs text-neutral-300 font-medium mt-1">
@@ -213,7 +196,8 @@ function SelahExtensionsPage() {
 
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <Link
-                        to={ext.guideAnchor}
+                        to="/selah/guide"
+                        hash={ext.id}
                         className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80 rounded px-1 py-0.5"
                       >
                         场景指南
@@ -225,14 +209,14 @@ function SelahExtensionsPage() {
                         aria-label={`获取扩展 ${ext.name}`}
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-300 hover:bg-red-500/30 hover:border-red-500/40 transition-colors cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80 min-h-[38px]"
                       >
-                        <span>获取扩展</span>
+                        <span>前往 Chrome 应用商店</span>
                         <span className="i-ph:arrow-square-out-duotone text-sm" aria-hidden="true" />
                       </a>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                    <div className="md:col-span-2 text-xs text-neutral-400 leading-relaxed">
+                    <div className="md:col-span-2 text-sm text-neutral-400 leading-relaxed">
                       {ext.description}
                     </div>
                     <div className="flex flex-wrap md:flex-col gap-2 justify-start md:justify-center">

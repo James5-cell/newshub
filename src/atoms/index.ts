@@ -1,5 +1,16 @@
 import type { FixedColumnID, SourceID } from "@shared/types"
+import { safeStorage } from "@shared/storage"
 import type { Update } from "./types"
+
+const mascotVisibilityStorageKey = "newshub-mascot-hidden"
+const mascotHiddenStateAtom = atom(safeStorage.getItem(mascotVisibilityStorageKey) === "true")
+export const mascotHiddenAtom = atom(
+  get => get(mascotHiddenStateAtom),
+  (_get, set, hidden: boolean) => {
+    safeStorage.setItem(mascotVisibilityStorageKey, String(hidden))
+    set(mascotHiddenStateAtom, hidden)
+  },
+)
 
 export const focusSourcesAtom = atom((get) => {
   return get(primitiveMetadataAtom).data.focus

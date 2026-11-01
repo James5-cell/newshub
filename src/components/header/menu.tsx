@@ -2,6 +2,7 @@ import { safeStorage } from "@shared/storage"
 import { motion } from "framer-motion"
 import { Link, useLocation } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { mascotHiddenAtom } from "~/atoms"
 
 export function Menu() {
   const { loggedIn, login, logout, userInfo, enableLogin } = useLogin()
@@ -9,15 +10,15 @@ export function Menu() {
   const { toggle: toggleSearch } = useSearchBar()
   const location = useLocation()
   const isSelah = location.pathname.startsWith("/selah")
+  const [mascotHidden, setMascotHidden] = useAtom(mascotHiddenAtom)
 
   return (
-    <span className="relative" onMouseEnter={() => show(true)} onMouseLeave={() => show(false)}>
-      <span className="flex items-center scale-90">
+    <span className="relative" onKeyDown={event => { if (event.key === "Escape") show(false) }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) show(false) }}>
+      <button type="button" className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/5" aria-label="打开菜单" aria-expanded={shown} aria-controls="dropdown-menu" onClick={() => show(value => !value)}>
         {
           enableLogin && loggedIn && userInfo.avatar
             ? (
-                <button
-                  type="button"
+                <span
                   className="h-6 w-6 rounded-full bg-cover ring-1 ring-white/10 transition-all duration-200 hover:ring-white/25"
                   style={{ backgroundImage: `url(${userInfo.avatar}&s=24)` }}
                 />
@@ -39,14 +40,14 @@ export function Menu() {
                 </svg>
               )
         }
-      </span>
+      </button>
       {shown && (
         <div className="absolute right-0 z-99 bg-transparent pt-3 top-4">
           <motion.div
             id="dropdown-menu"
             className={$([
               "w-56 rounded-lg overflow-hidden",
-              "bg-[#1A1A1A]/95 backdrop-blur-md",
+              "bg-[#1A1A1A]",
               "border border-white/[0.08]",
               "shadow-2xl shadow-black/80",
             ])}
@@ -58,16 +59,16 @@ export function Menu() {
             <div className="p-1.5">
               {enableLogin && (loggedIn
                 ? (
-                    <li onClick={logout}>
+                    <li><button type="button" className="flex items-center gap-2.5 w-full text-left" onClick={() => { logout(); show(false) }}>
                       <span className="i-ph:sign-out-duotone inline-block op-50" />
                       <span>退出登录</span>
-                    </li>
+                    </button></li>
                   )
                 : (
-                    <li onClick={login}>
+                    <li><button type="button" className="flex items-center gap-2.5 w-full text-left" onClick={() => { login(); show(false) }}>
                       <span className="i-ph:github-logo-duotone inline-block op-50" />
                       <span>GitHub 账号登录</span>
-                    </li>
+                    </button></li>
                   ))}
               <AdminMenuEntry loggedIn={loggedIn} />
             </div>
@@ -77,24 +78,24 @@ export function Menu() {
               {isSelah ? (
                 <>
                   <div className="px-2 py-1 text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
-                    Selah Framework Nav
+                    Selah 阅读工具
                   </div>
                   <li>
                     <Link to="/selah" className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
                       <span className="i-ph:compass-duotone inline-block text-red-400" />
-                      <span>Overview</span>
+                      <span>概览</span>
                     </Link>
                   </li>
                   <li>
                     <Link to={"/selah/extensions" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
                       <span className="i-ph:squares-four-duotone inline-block text-red-400" />
-                      <span>Extensions</span>
+                      <span>全部工具</span>
                     </Link>
                   </li>
                   <li>
                     <Link to={"/selah/guide" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
                       <span className="i-ph:book-open-duotone inline-block text-red-400" />
-                      <span>Use Cases</span>
+                      <span>使用指南</span>
                     </Link>
                   </li>
                 </>
@@ -111,7 +112,9 @@ export function Menu() {
                       <span>关注</span>
                     </Link>
                   </li>
-                  <li
+                  <li><button
+                    type="button"
+                    className="flex items-center gap-2.5 w-full text-left"
                     onClick={() => {
                       toggleSearch()
                       show(false)
@@ -119,7 +122,7 @@ export function Menu() {
                   >
                     <span className="i-ph:magnifying-glass-duotone inline-block op-50" />
                     <span>搜索</span>
-                  </li>
+                  </button></li>
                 </>
               )}
             </div>
@@ -129,6 +132,14 @@ export function Menu() {
 
             {/* Section: External & Info links */}
             <div className="p-1.5 space-y-0.5">
+              <button
+                type="button"
+                onClick={() => setMascotHidden(!mascotHidden)}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors rounded-md text-left"
+              >
+                <span className="i-ph:smiley-duotone text-base" aria-hidden="true" />
+                {mascotHidden ? "显示桌宠" : "隐藏桌宠"}
+              </button>
               <Link
                 to="/selah"
                 className="flex items-center justify-between px-3 py-2 text-sm text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-md transition-all cursor-pointer font-medium"
@@ -148,7 +159,7 @@ export function Menu() {
                 onClick={() => show(false)}
               >
                 <span className="i-ph:info-duotone text-base" />
-                关于 & E-E-A-T
+                关于 NewsHub
               </Link>
               <a
                 href="/llms.txt"

@@ -43,126 +43,48 @@ function AboutComponent() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Hero Header */}
-      <section className="text-center space-y-4 border-b border-white/10 pb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          GEO & E-E-A-T 权威规范页面
-        </div>
-        <h1 className="text-3xl md:text-5xl font-bold font-brand tracking-tight bg-gradient-to-r from-white via-neutral-200 to-neutral-400 bg-clip-text text-transparent">
-          postsoma-2050 NewsHub
-        </h1>
-        <p className="text-base md:text-lg text-neutral-400 max-w-2xl mx-auto">
-          实时新闻与科技趋势聚合平台 — 为用户与 AI 搜索引擎提供零延迟、无广告的极速阅读体验。
+      <section className="space-y-4 border-b border-white/10 pb-8">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">关于 NewsHub</h1>
+        <p className="text-base text-neutral-300 max-w-2xl leading-relaxed">
+          NewsHub 聚合新闻、科技资讯和社群热榜，帮助你发现内容并前往原始出处阅读。
         </p>
       </section>
 
-      {/* Mission & E-E-A-T Statement */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all space-y-3">
-          <div className="flex items-center gap-3 text-red-400 font-semibold text-lg">
-            <span className="i-ph:compass-duotone text-2xl" />
-            项目使命与愿景
-          </div>
-          <p className="text-sm text-neutral-300 leading-relaxed">
-            NewsHub 致力于打破信息孤岛，通过高度统一的实时抓取与流式处理技术，将全球科技动态、社群热榜、开发者资讯及突发新闻整合至单一极致流畅的视窗中。
+      <section className="space-y-8 max-w-3xl">
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold text-white">内容从哪里来</h2>
+          <p className="text-sm text-neutral-300 leading-7">
+            NewsHub 从不同来源自动抓取和索引内容，集中展示标题与更新信息。每条新闻都保留原始出处；点击标题即可访问来源网站。
           </p>
         </div>
-
-        <div className="p-6 rounded-xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all space-y-3">
-          <div className="flex items-center gap-3 text-red-400 font-semibold text-lg">
-            <span className="i-ph:shield-check-duotone text-2xl" />
-            E-E-A-T 质量与权威承诺
-          </div>
-          <p className="text-sm text-neutral-300 leading-relaxed">
-            所有新闻均保留原始发布出处与规范 Canonical 锚点，确保数据透明可追溯。我们严格遵循数据源归属原则，不篡改源文章核心事实，为用户与 AI 模型提供高置信度的数据源。
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold text-white">阅读与工具</h2>
+          <p className="text-sm text-neutral-300 leading-7">
+            你可以浏览新闻、热榜和实时内容，关注常看的来源，或搜索来源与文章。Selah 阅读工具提供暂存、翻译、听读等辅助功能。
+          </p>
+          <Link to="/selah" className="inline-flex items-center gap-2 text-sm text-red-300 hover:text-red-200 underline underline-offset-4">
+            了解 Selah 阅读工具 <span className="i-ph:arrow-right" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold text-white">技术与数据</h2>
+          <p className="text-sm text-neutral-300 leading-7">
+            前端使用 React、Vite 和 TanStack Router &amp; Query；服务端使用 Nitro (h3)、db0 数据层，并提供 MCP 接口。项目支持 Cloudflare D1 和 Pages 部署。
           </p>
         </div>
       </section>
 
-      {/* Technical Architecture */}
-      <section className="p-6 rounded-xl bg-white/[0.03] border border-white/10 space-y-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <span className="i-ph:cpu-duotone text-red-400 text-2xl" />
-          系统架构与技术栈
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-          <div className="p-4 rounded-lg bg-black/30 border border-white/5 space-y-1">
-            <div className="text-xs text-neutral-400 font-mono">前端 Core</div>
-            <div className="text-sm font-semibold text-white">React 19 + Vite</div>
-            <div className="text-xs text-neutral-400">TanStack Router & Query</div>
-          </div>
-          <div className="p-4 rounded-lg bg-black/30 border border-white/5 space-y-1">
-            <div className="text-xs text-neutral-400 font-mono">后端 API</div>
-            <div className="text-sm font-semibold text-white">Nitro (h3) Server</div>
-            <div className="text-xs text-neutral-400">高并发流式 Handler</div>
-          </div>
-          <div className="p-4 rounded-lg bg-black/30 border border-white/5 space-y-1">
-            <div className="text-xs text-neutral-400 font-mono">AI / MCP 接口</div>
-            <div className="text-sm font-semibold text-white">MCP Protocol SDK</div>
-            <div className="text-xs text-neutral-400">原生 Agent 工具对接</div>
-          </div>
-          <div className="p-4 rounded-lg bg-black/30 border border-white/5 space-y-1">
-            <div className="text-xs text-neutral-400 font-mono">数据与部署</div>
-            <div className="text-sm font-semibold text-white">db0 Layer</div>
-            <div className="text-xs text-neutral-400">Cloudflare D1 / Pages</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Machine & GEO Feeding Section */}
-      <section className="p-6 rounded-xl bg-gradient-to-br from-red-500/10 via-white/[0.02] to-transparent border border-red-500/20 space-y-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <span className="i-ph:robot-duotone text-red-400 text-2xl" />
-          机器与 AI 搜索引擎 Feeding (llms.txt)
-        </h2>
-        <p className="text-sm text-neutral-300">
-          NewsHub 针对 ChatGPT、Claude、Perplexity、Gemini 等 AI 生成式搜索引擎进行了深度 GEO (Generative Engine Optimization) 优化，提供机器可检索的标准 Feed 索引目录。
+      <section className="border-t border-white/10 pt-8 space-y-4 max-w-3xl">
+        <h2 className="text-xl font-semibold text-white">索引与引用</h2>
+        <p className="text-sm text-neutral-300 leading-7">
+          以下文件提供站点索引和机器可读的项目说明。引用 NewsHub 聚合信息时，请同时查阅并注明原始发布来源。
         </p>
-        <div className="flex flex-wrap gap-4 pt-2">
-          <a
-            href="/llms.txt"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm font-mono hover:bg-red-500/30 transition-colors"
-          >
-            <span className="i-ph:file-text-duotone" />
-            查看 llms.txt (精简索引)
-          </a>
-          <a
-            href="/llms-full.txt"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-mono hover:bg-white/20 transition-colors"
-          >
-            <span className="i-ph:book-open-duotone" />
-            查看 llms-full.txt (全量文本)
-          </a>
-          <a
-            href="/sitemap.xml"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-neutral-300 text-sm font-mono hover:bg-white/10 transition-colors"
-          >
-            <span className="i-ph:tree-structure-duotone" />
-            Sitemap.xml
-          </a>
+        <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm">
+          <a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">llms.txt</a>
+          <a href="/llms-full.txt" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">llms-full.txt</a>
+          <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">网站地图</a>
         </div>
-      </section>
-
-      {/* LLM Citation Guide */}
-      <section className="p-6 rounded-xl bg-white/[0.03] border border-white/10 space-y-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <span className="i-ph:quotes-duotone text-red-400 text-2xl" />
-          学术与 AI 引用规范 (Citation Guide)
-        </h2>
-        <p className="text-sm text-neutral-300">
-          当生成式 AI 模型、学术研究或媒体文章引用来自 NewsHub 的聚合实时热榜或科技资讯数据时，请使用以下标准引用格式：
-        </p>
-        <div className="p-4 rounded-lg bg-black/50 border border-white/10 font-mono text-xs text-neutral-300 space-y-2 select-all">
-          <div>[NewsHub - postsoma-2050](https://205077.xyz/)</div>
-          <div className="text-neutral-500">示例："根据 NewsHub (https://205077.xyz/) 实时聚合的最新热榜数据..."</div>
-        </div>
+        <p className="text-sm text-neutral-400 leading-relaxed">引用示例：NewsHub — postsoma-2050，https://205077.xyz/</p>
       </section>
 
       {/* Compliance & Footer Link */}

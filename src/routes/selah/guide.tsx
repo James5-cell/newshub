@@ -140,23 +140,17 @@ function SelahGuidePage() {
     <div className="space-y-10 py-2">
       {/* Page Title Header */}
       <section className="space-y-3 border-b border-white/10 pb-8">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded border border-red-500/20">
-            Just-in-Time Reading Guide
-          </span>
-          <span className="text-xs text-neutral-400 font-mono">情境化指南</span>
-        </div>
-        <h1 className="text-2xl md:text-4xl font-bold font-brand tracking-tight text-white">
-          按当下阅读遇到的问题查找建议
+        <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
+          阅读时遇到了什么问题？
         </h1>
         <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed">
-          你不需要预先学习四个扩展的功能差异。认清你现在遇到的阅读阻碍，随取随用最合适的辅助工具。
+          从遇到的问题出发，找到合适的工具和使用步骤。
         </p>
       </section>
 
       {/* First-time Lightweight Experience Checklist */}
       {showChecklist && (
-        <section className="p-6 rounded-xl bg-gradient-to-r from-red-500/10 via-white/[0.03] to-transparent border border-red-500/20 space-y-4">
+        <section className="p-6 rounded-xl bg-white/[0.02] border border-white/10 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="i-ph:flag-banner-duotone text-red-400 text-lg" />
@@ -182,16 +176,8 @@ function SelahGuidePage() {
             ].map((st) => {
               const checked = checklist[st.id]
               return (
-                <div
+                <label
                   key={st.id}
-                  onClick={() => toggleChecklistStep(st.id)}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      toggleChecklistStep(st.id)
-                    }
-                  }}
                   className={$(
                     "p-3 rounded-lg border transition-all cursor-pointer flex flex-col justify-between min-h-[72px]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
@@ -202,17 +188,10 @@ function SelahGuidePage() {
                 >
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-xs font-semibold">{st.text}</span>
-                    <span
-                      className={$(
-                        "w-4 h-4 rounded-full flex items-center justify-center text-[10px]",
-                        checked ? "bg-red-500 text-white" : "border border-white/20"
-                      )}
-                    >
-                      {checked && "✓"}
-                    </span>
+                    <input type="checkbox" checked={checked} onChange={() => toggleChecklistStep(st.id)} className="w-4 h-4 accent-red-500 flex-shrink-0" />
                   </div>
                   <span className="text-[10px] text-neutral-400 mt-1">{st.sub}</span>
-                </div>
+                </label>
               )
             })}
           </div>
@@ -233,15 +212,14 @@ function SelahGuidePage() {
                   <span className={`${sc.icon} text-xl`} />
                 </div>
                 <div>
-                  <div className="text-xs text-red-400/90 font-mono">情境问题 · Scenario</div>
-                  <h3 className="text-base md:text-lg font-bold text-white tracking-tight mt-0.5">
-                    “{sc.problem}”
-                  </h3>
+                  <h2 className="text-base md:text-lg font-bold text-white tracking-tight mt-0.5">
+                    {sc.problem}
+                  </h2>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-                <span className="text-xs font-mono text-neutral-400 bg-white/[0.03] px-2.5 py-1 rounded border border-white/[0.08]">
+                <span className="text-sm text-neutral-300">
                   {sc.toolName}
                 </span>
 
@@ -250,7 +228,7 @@ function SelahGuidePage() {
                     to={sc.internalUrl}
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-300 hover:bg-red-500/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                   >
-                    <span>Open NewsHub</span>
+                    <span>打开 NewsHub</span>
                     <span className="i-ph:arrow-right-bold text-[10px]" />
                   </Link>
                 ) : (
@@ -260,7 +238,7 @@ function SelahGuidePage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-300 hover:bg-red-500/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                   >
-                    <span>获取扩展</span>
+                    <span>前往 Chrome 应用商店</span>
                     <span className="i-ph:arrow-square-out-duotone text-xs" />
                   </a>
                 )}
@@ -269,20 +247,19 @@ function SelahGuidePage() {
 
             {/* Action Steps */}
             <div className="space-y-3 pt-1">
-              <div className="text-xs font-mono text-neutral-400">建议可操作步骤：</div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {sc.steps.map((st, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-lg bg-black/30 border border-white/[0.04] space-y-1"
+              <div className="text-sm text-neutral-400">使用步骤</div>
+              <ol className="space-y-2 list-decimal pl-5 text-sm text-neutral-300">
+                {sc.steps.map(st => (
+                  <li
+                    key={st}
+                    className="pl-1 leading-relaxed"
                   >
-                    <div className="text-[11px] font-mono text-red-400">Step 0{idx + 1}</div>
-                    <p className="text-xs text-neutral-300 leading-relaxed">{st}</p>
-                  </div>
+                    {st}
+                  </li>
                 ))}
-              </div>
-              <div className="text-[11px] text-neutral-400 italic pt-1">
-                💡 提示：{sc.note}
+              </ol>
+              <div className="text-xs text-neutral-400 pt-1">
+                {sc.note}
               </div>
             </div>
           </div>

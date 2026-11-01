@@ -15,7 +15,7 @@
 }
 
 [cmdk-input]{
-    --at-apply: w-full p-3 outline-none bg-transparent placeholder:color-neutral-500/60 border-color-neutral/10 border-b;
+    --at-apply: w-full p-3 outline-none bg-transparent placeholder:color-neutral-400;
 }
 
 [cmdk-list] {
@@ -27,15 +27,15 @@
 }
 
 [cmdk-dialog] {
-    --at-apply: bg-base sprinkle-primary bg-op-97 backdrop-blur-5 shadow pb-4 rounded-2xl shadow-2xl relative outline-none;
+    --at-apply: bg-base pb-4 rounded-xl shadow-2xl relative outline-none;
     position: fixed;
-    width: 80vw ;
+    width: min(94vw, 675px);
     max-width: 675px;
     z-index: 999;
     left: 50%;
     top: 50%;
     /* transform: translateX(-50%) translateY(-50%); */
-    transform: translate(round(-50%, 1px), round(-50%, 1px));
+    transform: translate(-50%, -50%);
 }
 
 [cmdk-dialog] {

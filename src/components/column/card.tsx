@@ -34,7 +34,7 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging
     <div
       ref={ref}
       className={$(
-        "flex flex-col h-500px rounded-lg cursor-default",
+        "flex flex-col h-500px rounded-xl cursor-default",
         "transition-all duration-200",
         isDragging && "op-50",
         "bg-white/[0.025] border border-white/[0.06]",
@@ -158,6 +158,8 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
             target="_blank"
             href={home}
             title={desc}
+            aria-label={`访问${name}网站`}
+            rel="noopener noreferrer"
             style={{
               backgroundImage: iconUrl ? `url(${iconUrl})` : undefined,
             }}
@@ -197,17 +199,19 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
           </button>
           <button
             type="button"
-            className={$(
-              "btn p-1 rounded transition-all duration-200",
-              isFocused
-                ? "i-ph:star-fill text-amber-400/70"
-                : "i-ph:star-duotone op-30 hover:op-70",
-            )}
+            aria-label={isFocused ? `取消关注${name}` : `关注${name}`}
+            aria-pressed={isFocused}
+            title={isFocused ? "取消关注" : "关注"}
+            className="w-11 h-11 flex items-center justify-center rounded hover:bg-white/5 transition-colors"
             onClick={toggleFocus}
-          />
+          >
+            <span aria-hidden="true" className={$(isFocused ? "i-ph:star-fill text-amber-400" : "i-ph:star-duotone text-neutral-400")} />
+          </button>
           {setHandleRef && (
             <div
               ref={setHandleRef}
+              title="拖动调整顺序"
+              aria-hidden="true"
               className="btn i-ph:dots-six-vertical-duotone op-20 hover:op-50 cursor-grab transition-opacity duration-200"
             />
           )}
@@ -216,20 +220,22 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
 
       {/* Scrollable news feed */}
       <OverlayScrollbar
-        className={$([
-          "flex-1 overflow-y-auto",
-          isFetching && "animate-pulse",
-        ])}
+        className="flex-1 overflow-y-auto"
         options={{
           overflow: { x: "hidden" },
         }}
         defer
       >
-        <div className={$("transition-opacity duration-300", isFetching && "op-30")}>
+        <div className={$("transition-opacity duration-300", isFetching && data?.items?.length && "op-65")}>
           {!!data?.items?.length && (
             sourceType === "hottest"
               ? <NewsListHot items={data.items} />
               : <NewsListTimeLine items={data.items} />
+          )}
+          {!isFetching && !data?.items?.length && (
+            <p className="px-4 py-8 text-sm text-neutral-400" role="status">
+              {isError ? "暂时无法加载内容，可点击上方刷新按钮重试。" : "暂无内容，请稍后再来。"}
+            </p>
           )}
         </div>
       </OverlayScrollbar>
@@ -302,16 +308,17 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
   return (
     <ol className="flex flex-col">
       {items?.map((item, i) => (
+        <li key={item.id}>
         <a
           href={width < 768 ? item.mobileUrl || item.url : item.url}
           target="_blank"
-          key={item.id}
+          rel="noopener noreferrer"
           title={item.extra?.hover}
           className={$(
             "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer",
             "py-1.5 px-2 transition-colors duration-150",
             "hover:bg-white/[0.04]",
-            "border-b border-white/[0.04] last:border-b-0",
+            "border-b border-white/[0.04]",
             "visited:(text-neutral-500)",
           )}
         >
@@ -328,6 +335,7 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
             </span>
           </span>
         </a>
+        </li>
       ))}
     </ol>
   )

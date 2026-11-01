@@ -30,7 +30,7 @@ export function NavBar() {
       <nav
         className={$([
           "flex p-1 rounded-xl text-sm gap-1",
-          "bg-white/[0.04] border border-white/[0.08] backdrop-blur-md shadow-sm",
+          "bg-white/[0.03] border border-white/[0.08]",
         ])}
         aria-label="分类导航"
       >
@@ -39,16 +39,28 @@ export function NavBar() {
             key={columnId}
             to="/c/$column"
             params={{ column: columnId }}
+            aria-current={currentId === columnId ? "page" : undefined}
             className={$(
-              "px-3.5 py-1.5 rounded-lg cursor-pointer transition-all duration-200 text-sm font-medium",
+              "px-2 sm:px-3.5 py-1.5 rounded-lg cursor-pointer transition-all duration-200 text-sm font-medium whitespace-nowrap flex-shrink-0",
               currentId === columnId
-                ? "bg-white/12 text-white shadow-sm ring-1 ring-white/10"
-                : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]",
+                ? "bg-white/12 text-white"
+                : "text-white/65 hover:text-white hover:bg-white/[0.04]",
             )}
           >
             {metadata[columnId].name}
           </Link>
         ))}
+        <Link
+          to="/c/$column"
+          params={{ column: "focus" }}
+          aria-current={currentId === "focus" ? "page" : undefined}
+          className={$(
+            "md:hidden px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
+            currentId === "focus" ? "bg-white/12 text-white" : "text-white/65 hover:text-white hover:bg-white/[0.04]",
+          )}
+        >
+          关注
+        </Link>
       </nav>
 
       {/* Standalone Action Control: Refresh Button (Always visible to all users) */}
@@ -60,7 +72,7 @@ export function NavBar() {
         aria-label="刷新当前板块"
         aria-busy={isRefreshing}
         className={$(
-          "h-11 min-w-11 px-3 rounded-xl transition-all duration-200 flex items-center gap-1.5 text-xs font-medium border backdrop-blur-md",
+          "h-11 min-w-11 px-3 rounded-xl transition-colors duration-200 flex items-center gap-1.5 text-xs font-medium border",
           limitReached
             ? "bg-white/[0.02] border-white/[0.04] text-white/20 cursor-not-allowed"
             : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/15 active:scale-95 cursor-pointer shadow-sm",
