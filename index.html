@@ -12,7 +12,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <!-- Canonical URL -->
-  <link rel="canonical" href="https://205077.xyz/" />
+  <link rel="canonical" href="https://news.postsoma-2050.com/" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="LLMs.txt" />
+  <link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLMs Full Reference" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
   <!-- SEO Meta Tags -->
   <meta name="description" content="NewsHub - 实时聚合 Dev.to、Nature、Hacker News、Product Hunt、Phys.org、知乎、微博等全球热点科技、科学与开发者情报" />
@@ -22,11 +25,12 @@
 
   <!-- Open Graph Meta Tags -->
   <meta property="og:type" content="website" />
+  <meta property="og:locale" content="zh_CN" />
   <meta property="og:title" content="NewsHub - Real-time Tech & Science Aggregator" />
   <meta property="og:description" content="即時聚合 Dev.to、Nature、Hacker News 等多平台熱門開發者與科學資訊。" />
-  <meta property="og:url" content="https://205077.xyz/" />
-  <meta property="og:image" content="https://205077.xyz/og-image.png?v=2" />
-  <meta property="og:image:secure_url" content="https://205077.xyz/og-image.png?v=2" />
+  <meta property="og:url" content="https://news.postsoma-2050.com/" />
+  <meta property="og:image" content="https://news.postsoma-2050.com/og-image.png?v=2" />
+  <meta property="og:image:secure_url" content="https://news.postsoma-2050.com/og-image.png?v=2" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -37,7 +41,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="NewsHub - Real-time Tech & Science Aggregator" />
   <meta name="twitter:description" content="即時聚合 Dev.to、Nature、Hacker News 等多平台熱門開發者與科學資訊。" />
-  <meta name="twitter:image" content="https://205077.xyz/og-image.png?v=2" />
+  <meta name="twitter:image" content="https://news.postsoma-2050.com/og-image.png?v=2" />
 
   <meta name="theme-color" content="#F14D42" />
   <link rel="preload" href="/Baloo2-Bold.subset.ttf" as="font" type="font/ttf" crossorigin>
@@ -49,19 +53,19 @@
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "postsoma-2050 NewsHub",
-        "alternateName": ["NewsHub", "205077 News"],
-        "url": "https://205077.xyz/",
+        "alternateName": ["NewsHub", "PostSoma NewsHub"],
+        "url": "https://news.postsoma-2050.com/",
         "description": "实时新闻聚合阅读器，汇集全球热点新闻、科技动态与热榜趋势，提供优雅的阅读体验",
         "publisher": {
           "@type": "Organization",
           "name": "postsoma-2050",
-          "url": "https://205077.xyz/"
+          "url": "https://news.postsoma-2050.com/"
         },
         "potentialAction": {
           "@type": "SearchAction",
           "target": {
             "@type": "EntryPoint",
-            "urlTemplate": "https://205077.xyz/?q={search_term_string}"
+            "urlTemplate": "https://news.postsoma-2050.com/?q={search_term_string}"
           },
           "query-input": "required name=search_term_string"
         }
@@ -70,13 +74,14 @@
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": "postsoma-2050 NewsHub",
-        "url": "https://205077.xyz/",
-        "logo": "https://205077.xyz/icon-512x512.png",
-        "image": "https://205077.xyz/og-image.png",
+        "url": "https://news.postsoma-2050.com/",
+        "logo": "https://news.postsoma-2050.com/icon-512x512.png",
+        "image": "https://news.postsoma-2050.com/og-image.png",
         "sameAs": [
-          "https://postsoma-2050.website/"
+          "https://postsoma-2050.website/",
+          "https://github.com/James5-cell/newshub"
         ],
-        "publishingPrinciples": "https://205077.xyz/about"
+        "publishingPrinciples": "https://news.postsoma-2050.com/about"
       },
       {
         "@context": "https://schema.org",
@@ -84,6 +89,7 @@
         "name": "NewsHub",
         "operatingSystem": "All",
         "applicationCategory": "NewsApplication",
+        "url": "https://news.postsoma-2050.com/",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -92,15 +98,6 @@
         "description": "基于 React 19 和 Nitro 的高能实时科技与科学新闻聚合平台"
       }
     ]
-  </script>
-
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RL5TXGWY67"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-RL5TXGWY67');
   </script>
 
   <script>
@@ -116,6 +113,24 @@
 
 <body>
   <div id="app"></div>
+  <noscript>
+    <main>
+      <h1>NewsHub — 实时科技、科学与开发者新闻聚合平台</h1>
+      <p>实时聚合 Dev.to、Nature、Hacker News、Product Hunt、Phys.org、GitHub Trending、知乎与微博等全球科技与热点资讯。</p>
+      <nav aria-label="核心栏目导航">
+        <ul>
+          <li><a href="/c/hottest">最热榜单 (Hottest)</a></li>
+          <li><a href="/c/realtime">实时新闻 (Realtime)</a></li>
+          <li><a href="/c/focus">关注专栏 (Focus)</a></li>
+          <li><a href="/c/news">全部来源 (Sources)</a></li>
+          <li><a href="/selah">Selah 阅读工具</a></li>
+          <li><a href="/about">关于 NewsHub</a></li>
+          <li><a href="/llms.txt">LLMs.txt</a></li>
+          <li><a href="/sitemap.xml">Sitemap</a></li>
+        </ul>
+      </nav>
+    </main>
+  </noscript>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

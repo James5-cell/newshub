@@ -66,9 +66,39 @@ Allow: /
 Disallow: /admin
 Disallow: /api
 
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: meta-externalagent
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: cohere-ai
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+User-agent: DuckAssistBot
+Allow: /
+Disallow: /admin
+Disallow: /api
+
 # Hostname, Sitemap & LLM Feed Index References
-Host: https://205077.xyz
-Sitemap: https://205077.xyz/sitemap.xml
-LLM-Text-Index: https://205077.xyz/llms.txt
+Host: https://news.postsoma-2050.com
+Sitemap: https://news.postsoma-2050.com/sitemap.xml
+LLM-Text-Index: https://news.postsoma-2050.com/llms.txt
 `
 })

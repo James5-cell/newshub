@@ -3,15 +3,16 @@
 > NewsHub is a high-performance, real-time news aggregator providing globally unified news, tech trends, hot topics, and customizable RSS feed tracking.
 
 ## Core Features & Sections
-- [Homepage](https://205077.xyz/): Real-time news matrix aggregating multi-source global updates.
-- [Focus Column](https://205077.xyz/c/focus): Highlighted breaking news and curated top stories.
-- [Hottest Trending](https://205077.xyz/c/hottest): Real-time aggregated trending topics across major platforms (Weibo, Zhihu, V2EX, GitHub, Hacker News, etc.).
-- [Realtime Stream](https://205077.xyz/c/realtime): Minute-by-minute streaming news dispatch.
-- [News Directory](https://205077.xyz/c/news): Comprehensive category breakdown (Tech, Finance, Entertainment, Science, General).
-- [Custom Sources](https://205077.xyz/c/more): Custom RSS source subscription and channel configuration.
-- [About & E-E-A-T](https://205077.xyz/about): Project mission, architecture, privacy compliance, and LLM citation guidelines.
+- [Homepage](https://news.postsoma-2050.com/): Real-time news matrix aggregating multi-source global updates.
+- [Focus Column](https://news.postsoma-2050.com/c/focus): Highlighted breaking news and curated top stories.
+- [Hottest Trending](https://news.postsoma-2050.com/c/hottest): Real-time aggregated trending topics across major platforms (Weibo, Zhihu, V2EX, GitHub, Hacker News, etc.).
+- [Realtime Stream](https://news.postsoma-2050.com/c/realtime): Minute-by-minute streaming news dispatch.
+- [News Directory](https://news.postsoma-2050.com/c/news): Comprehensive category breakdown (Tech, Finance, Entertainment, Science, General).
+- [Custom Sources](https://news.postsoma-2050.com/c/more): Custom RSS source subscription and channel configuration.
+- [Selah Reading Tools](https://news.postsoma-2050.com/selah): Companion reading, translation, and audio tools.
+- [About & E-E-A-T](https://news.postsoma-2050.com/about): Project mission, architecture, privacy compliance, and LLM citation guidelines.
 
 ## Machine-Readable Resources
-- [llms-full.txt](https://205077.xyz/llms-full.txt): Complete structured text catalog & LLM knowledge base.
-- [Sitemap](https://205077.xyz/sitemap.xml): XML sitemap for automated indexing.
-- [Robots](https://205077.xyz/robots.txt): Machine crawler permission rules.
+- [llms-full.txt](https://news.postsoma-2050.com/llms-full.txt): Complete structured text catalog & LLM knowledge base.
+- [Sitemap](https://news.postsoma-2050.com/sitemap.xml): XML sitemap for automated indexing.
+- [Robots](https://news.postsoma-2050.com/robots.txt): Machine crawler permission rules.

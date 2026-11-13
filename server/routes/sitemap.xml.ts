@@ -4,7 +4,7 @@ import { fixedColumnIds } from "@shared/metadata"
 export default defineEventHandler((event) => {
   setResponseHeader(event, "Content-Type", "application/xml; charset=utf-8")
   
-  const baseUrl = "https://205077.xyz"
+  const baseUrl = "https://news.postsoma-2050.com"
   const now = new Date().toISOString().split("T")[0] // YYYY-MM-DD
   
   let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n`
@@ -25,6 +25,16 @@ export default defineEventHandler((event) => {
   sitemap += `    <changefreq>weekly</changefreq>\n`
   sitemap += `    <priority>0.8</priority>\n`
   sitemap += `  </url>\n`
+
+  // 2.5 Selah Reading Tools
+  for (const path of ["/selah", "/selah/extensions", "/selah/guide"]) {
+    sitemap += `  <url>\n`
+    sitemap += `    <loc>${baseUrl}${path}</loc>\n`
+    sitemap += `    <lastmod>${now}</lastmod>\n`
+    sitemap += `    <changefreq>weekly</changefreq>\n`
+    sitemap += `    <priority>0.7</priority>\n`
+    sitemap += `  </url>\n`
+  }
 
   // 3. Fixed Column Pages (focus, news, hottest, realtime, more)
   for (const id of fixedColumnIds) {

@@ -3,5 +3,5 @@
   "main": "worker.mjs",
   "compatibility_date": "2026-10-02",
   "triggers": { "crons": ["* * * * *"] },
-  "vars": { "NEWSHUB_URL": "https://205077.xyz" }
+  "vars": { "NEWSHUB_URL": "https://news.postsoma-2050.com" }
 }

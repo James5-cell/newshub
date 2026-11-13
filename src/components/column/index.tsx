@@ -14,6 +14,12 @@ export function Column({ id }: { id: FixedColumnID }) {
 
   return (
     <>
+      <h1 className="sr-only">
+        NewsHub —
+        {metadata[id].name}
+        {" "}
+        实时科技与开发者新闻聚合
+      </h1>
       <div className="flex justify-center md:hidden mb-6">
         <NavBar />
       </div>

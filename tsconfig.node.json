@@ -33,6 +33,7 @@
     "tools",
     "dist/.nitro/types",
     "src/mascot/engine.ts",
-    "src/mascot.config.ts"
+    "src/mascot.config.ts",
+    "src/config/analytics.ts"
   ]
 }

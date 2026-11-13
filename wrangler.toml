@@ -9,3 +9,10 @@ database_id = "2dcf6ff1-e5b2-4a94-aa6d-5f663529e0dc"
 
 [vars]
 CF_PAGES = "1"
+VITE_GA_ROLLUP_ID = "G-NZ2V582QTN"
+VITE_GA_PROJECT_ID = "G-RL5TXGWY67"
+VITE_GA_ID = "G-RL5TXGWY67"
+VITE_GA_PROJECT_NAME = "news_hub"
+VITE_GA_COGNITIVE_LAYER = "Signal"
+VITE_UMAMI_WEBSITE_ID = "9f4196e1-ed4d-473a-9a2f-51f0b80024c5"
+VITE_UMAMI_SCRIPT_URL = "https://pulse.postsoma-2050.website/pulse.js"

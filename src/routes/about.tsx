@@ -9,13 +9,13 @@ function AboutComponent() {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": "关于 NewsHub | 使命、架构与 E-E-A-T 说明",
-    "url": "https://205077.xyz/about",
+    "url": "https://news.postsoma-2050.com/about",
     "description": "postsoma-2050 NewsHub 的使命、系统架构、数据源抓取机制、隐私合规以及机器与 AI 引擎 (GEO) 检索指南。",
     "publisher": {
       "@type": "Organization",
       "name": "postsoma-2050 NewsHub",
-      "url": "https://205077.xyz/",
-      "logo": "https://205077.xyz/icon-512.png"
+      "url": "https://news.postsoma-2050.com/",
+      "logo": "https://news.postsoma-2050.com/icon-512.png"
     },
     "breadcrumb": {
       "@type": "BreadcrumbList",
@@ -24,13 +24,13 @@ function AboutComponent() {
           "@type": "ListItem",
           "position": 1,
           "name": "首页",
-          "item": "https://205077.xyz/"
+          "item": "https://news.postsoma-2050.com/"
         },
         {
           "@type": "ListItem",
           "position": 2,
           "name": "关于我们",
-          "item": "https://205077.xyz/about"
+          "item": "https://news.postsoma-2050.com/about"
         }
       ]
     }
@@ -84,7 +84,7 @@ function AboutComponent() {
           <a href="/llms-full.txt" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">llms-full.txt</a>
           <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">网站地图</a>
         </div>
-        <p className="text-sm text-neutral-400 leading-relaxed">引用示例：NewsHub — postsoma-2050，https://205077.xyz/</p>
+        <p className="text-sm text-neutral-400 leading-relaxed">引用示例：NewsHub — postsoma-2050，https://news.postsoma-2050.com/</p>
       </section>
 
       {/* Compliance & Footer Link */}

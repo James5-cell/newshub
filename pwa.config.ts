@@ -52,7 +52,7 @@ const pwaOption: Partial<VitePWAOptions> = {
   },
   workbox: {
     importScripts: ["/pwa-update-migration.js"],
-    navigateFallbackDenylist: [/^\/api/],
+    navigateFallbackDenylist: [/^\/api/, /\/sitemap\.xml$/, /\/robots\.txt$/, /\/llms(?:-full)?\.txt$/],
   },
   devOptions: {
     enabled: process.env.SW_DEV === "true",

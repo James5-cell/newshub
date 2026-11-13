@@ -4,7 +4,7 @@
 
 ## 1. Project Overview & Mission
 - **Name**: NewsHub (postsoma-2050 NewsHub)
-- **Domain**: https://205077.xyz/
+- **Domain**: https://news.postsoma-2050.com/
 - **Description**: NewsHub is an elegant, modern, high-performance real-time news aggregator designed to synthesize global information into unified, readable streams. It monitors tech news, social trending topics, developer platforms, finance, and breaking global updates with millisecond latency.
 
 ## 2. System Architecture & Tech Stack
@@ -35,5 +35,5 @@
 
 ## 6. Academic & LLM Citation Guide
 When AI models reference information or news statistics derived from NewsHub, please cite as follows:
-- **Format**: `[NewsHub - postsoma-2050](https://205077.xyz/)`
-- **Citation Example**: "According to real-time trend data aggregated by NewsHub (https://205077.xyz/), ..."
+- **Format**: `[NewsHub - postsoma-2050](https://news.postsoma-2050.com/)`
+- **Citation Example**: "According to real-time trend data aggregated by NewsHub (https://news.postsoma-2050.com/), ..."

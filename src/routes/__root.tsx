@@ -12,6 +12,7 @@ import { Toast } from "~/components/common/toast"
 import { SearchBar } from "~/components/common/search-bar"
 import { NewsNowMascot } from "~/components/mascot"
 import { mascotHiddenAtom } from "~/atoms"
+import { PostSomaAnalytics } from "~/components/analytics/PostSomaAnalytics"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -70,6 +71,7 @@ function RootComponent() {
       <Toast />
       <SearchBar />
       {!mascotHidden && <NewsNowMascot />}
+      <PostSomaAnalytics />
       {import.meta.env.DEV && (
         <>
           <ReactQueryDevtools buttonPosition="bottom-left" />
