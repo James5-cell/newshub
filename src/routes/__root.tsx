@@ -12,7 +12,7 @@ import { Footer } from "~/components/footer"
 import { Toast } from "~/components/common/toast"
 import { SearchBar } from "~/components/common/search-bar"
 import { NewsNowMascot } from "~/components/mascot"
-import { mascotHiddenAtom } from "~/atoms"
+import { useMascotVisibility } from "~/hooks/useMascotVisibility"
 import { PostSomaAnalytics } from "~/components/analytics/PostSomaAnalytics"
 
 export const Route = createRootRouteWithContext<{
@@ -30,7 +30,7 @@ function NotFoundComponent() {
 }
 
 function RootComponent() {
-  const mascotHidden = useAtomValue(mascotHiddenAtom)
+  const [mascotHidden] = useMascotVisibility()
   useOnReload()
   useSync()
   useReconcileFocus()
@@ -40,32 +40,34 @@ function RootComponent() {
       <GlobalOverlayScrollbar
         className={$([
           !isMobile && "px-4",
-          "h-full overflow-x-auto",
+          "reader-scroll h-full overflow-x-auto",
           "md:(px-10)",
           "lg:(px-24)",
         ])}
       >
-        <header
-          className={$([
-            "grid items-center py-4 px-5",
-            "lg:(py-6)",
-            "sticky top-0 z-10 backdrop-blur-md",
+        <div className="reader-layout">
+          <header
+            className={$([
+              "grid items-center py-4 px-5",
+              "lg:(py-6)",
+              "sticky top-0 z-10 backdrop-blur-md",
+            ])}
+            style={{
+              gridTemplateColumns: "1fr auto 1fr",
+            }}
+          >
+            <Header />
+          </header>
+          <main className={$([
+            "mt-2",
+            "min-h-[calc(100vh-180px)]",
+            "md:(min-h-[calc(100vh-175px)])",
+            "lg:(min-h-[calc(100vh-194px)])",
           ])}
-          style={{
-            gridTemplateColumns: "1fr auto 1fr",
-          }}
-        >
-          <Header />
-        </header>
-        <main className={$([
-          "mt-2",
-          "min-h-[calc(100vh-180px)]",
-          "md:(min-h-[calc(100vh-175px)])",
-          "lg:(min-h-[calc(100vh-194px)])",
-        ])}
-        >
-          <Outlet />
-        </main>
+          >
+            <Outlet />
+          </main>
+        </div>
         <footer className="py-6 flex flex-col items-center justify-center text-sm text-neutral-500 font-mono">
           <Footer />
         </footer>

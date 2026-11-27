@@ -2,7 +2,7 @@ import { safeStorage } from "@shared/storage"
 import { motion } from "framer-motion"
 import { Link, useLocation } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { mascotHiddenAtom } from "~/atoms"
+import { useMascotVisibility } from "~/hooks/useMascotVisibility"
 
 export function Menu() {
   const { loggedIn, login, logout, userInfo, enableLogin } = useLogin()
@@ -11,7 +11,7 @@ export function Menu() {
   const { toggle: toggleSearch } = useSearchBar()
   const location = useLocation()
   const isSelah = location.pathname.startsWith("/selah")
-  const [mascotHidden, setMascotHidden] = useAtom(mascotHiddenAtom)
+  const [mascotHidden, setMascotHidden] = useMascotVisibility()
 
   return (
     <span

@@ -13,6 +13,7 @@ import { DndContext } from "../common/dnd"
 import { useSortable } from "../common/dnd/useSortable"
 import type { ItemsProps } from "./card"
 import { CardWrapper } from "./card"
+import { compactReaderQuery } from "~/utils"
 import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
 import { primitiveMetadataAtom } from "~/atoms/primitiveMetadataAtom"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
@@ -73,7 +74,7 @@ export function Dnd() {
 
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
   useEntireQuery(allItems)
-  const compact = useMedia("(max-width: 767px)")
+  const compact = useMedia(compactReaderQuery)
   const rail = useRef<HTMLOListElement>(null)
   const setRail = useCallback((node: HTMLOListElement | null) => {
     rail.current = node
@@ -154,7 +155,7 @@ export function Dnd() {
       )}
       <ol
         ref={setRail}
-        className={compact ? "relative flex overflow-x-auto snap-x snap-mandatory gap-3 px-2 pb-3" : "grid gap-5"}
+        className={compact ? "news-source-rail relative flex overflow-x-auto snap-x snap-mandatory gap-3" : "grid gap-5"}
         style={compact ? undefined : { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 350px), 1fr))" }}
         onScroll={compact ? event => {
           const list = event.currentTarget

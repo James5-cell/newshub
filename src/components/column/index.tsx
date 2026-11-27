@@ -20,7 +20,7 @@ export function Column({ id }: { id: FixedColumnID }) {
         {" "}
         实时科技与开发者新闻聚合
       </h1>
-      <div className="flex justify-center md:hidden mb-6">
+      <div className="flex justify-center md:hidden mb-2">
         <NavBar />
       </div>
       {id === currentColumnID && <Dnd />}

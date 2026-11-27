@@ -1,6 +1,8 @@
 import type { MaybePromise } from "@shared/type.util"
 import { $fetch } from "ofetch"
 
+export const compactReaderQuery = "(max-width: 767px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px)"
+
 export function safeParseString(str: any) {
   try {
     return JSON.parse(str)
