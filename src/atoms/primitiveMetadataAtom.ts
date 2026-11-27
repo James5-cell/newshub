@@ -3,6 +3,8 @@ import type { PrimitiveAtom } from "jotai"
 import type { FixedColumnID, PrimitiveMetadata, SourceID } from "@shared/types"
 import type { Update } from "./types"
 
+export const syncAccountAtom = atom<string | null>(null)
+
 function createPrimitiveMetadataAtom(
   key: string,
   initialValue: PrimitiveMetadata,
@@ -24,8 +26,25 @@ function createPrimitiveMetadataAtom(
   }
   const baseAtom = atom(getInitialValue())
   const derivedAtom = atom(get => get(baseAtom), (get, set, update: Update<PrimitiveMetadata>) => {
-    const nextValue = update instanceof Function ? update(get(baseAtom)) : update
-    if (nextValue.updatedTime > get(baseAtom).updatedTime) {
+    let current = get(baseAtom)
+    // Another tab can save a newer edit while this tab awaits an upload response.
+    const stored = getInitialValue()
+    if (stored.updatedTime > current.updatedTime) {
+      current = stored
+      set(baseAtom, current)
+    }
+    let nextValue = update instanceof Function ? update(current) : update
+    if (nextValue === current) return
+    if (nextValue.action === "manual") {
+      nextValue = {
+        ...nextValue,
+        updatedTime: Math.max(current.updatedTime + 1, nextValue.updatedTime),
+        pendingSyncFor: get(syncAccountAtom) ?? current.pendingSyncFor ?? null,
+      }
+    }
+    const acknowledged = current.pendingSyncFor !== undefined && nextValue.pendingSyncFor === undefined
+      && nextValue.updatedTime === current.updatedTime && nextValue.action === "sync"
+    if (nextValue.updatedTime > current.updatedTime || acknowledged) {
       set(baseAtom, nextValue)
       safeStorage.setItem(key, JSON.stringify(nextValue))
     }
@@ -44,7 +63,7 @@ export function preprocessMetadata(target: PrimitiveMetadata) {
         typeSafeObjectEntries(target.data)
           .filter(([id]) => initialMetadata[id])
           .map(([id, s]) => {
-            if (id === "focus") return [id, s.filter(k => sources[k]).map(k => sources[k].redirect ?? k)]
+            if (id === "focus") return [id, [...new Set(s.map(k => sources[k]?.redirect ?? k))]]
             // 保留使用者排序：靜態源做 redirect 映射，動態源原樣保留
             const oldS = s.map(k => {
               if (sources[k]) return sources[k].redirect ?? k  // 靜態源：套用 redirect
@@ -56,6 +75,7 @@ export function preprocessMetadata(target: PrimitiveMetadata) {
           }),
       ),
     },
+    pendingSyncFor: target.pendingSyncFor,
     manualOrderByColumn: target.manualOrderByColumn ?? {},
     action: target.action,
     updatedTime: target.updatedTime,

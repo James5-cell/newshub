@@ -1,13 +1,16 @@
 import { safeStorage } from "@shared/storage"
 import type { PrimitiveMetadata } from "@shared/types"
-import { useDebounce } from "react-use"
+import { useLayoutEffect, useReducer } from "react"
 import { useLogin } from "./useLogin"
 import { useToast } from "./useToast"
+import { syncAccountAtom } from "~/atoms/primitiveMetadataAtom"
 import { safeParseString } from "~/utils"
+
+type SyncedMetadata = Pick<PrimitiveMetadata, "data" | "updatedTime" | "manualOrderByColumn">
 
 async function uploadMetadata(metadata: PrimitiveMetadata) {
   const jwt = safeParseString(safeStorage.getItem("jwt"))
-  await myFetch("/me/sync", {
+  return myFetch<Partial<SyncedMetadata> & { success: boolean }>("/me/sync", {
     method: "POST",
     headers: {
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
@@ -15,21 +18,23 @@ async function uploadMetadata(metadata: PrimitiveMetadata) {
     body: {
       data: metadata.data,
       updatedTime: metadata.updatedTime,
+      manualOrderByColumn: metadata.manualOrderByColumn ?? {},
     },
   })
 }
 
 async function downloadMetadata(): Promise<PrimitiveMetadata | undefined> {
   const jwt = safeParseString(safeStorage.getItem("jwt"))
-  const { data, updatedTime } = await myFetch("/me/sync", {
+  const { data, updatedTime, manualOrderByColumn } = await myFetch<SyncedMetadata>("/me/sync", {
     headers: {
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
-  }) as PrimitiveMetadata
+  })
   // 不用同步 action 字段
   if (data) {
     return {
       action: "sync",
+      manualOrderByColumn,
       data,
       updatedTime,
     }
@@ -38,52 +43,72 @@ async function downloadMetadata(): Promise<PrimitiveMetadata | undefined> {
 
 export function useSync() {
   const [primitiveMetadata, setPrimitiveMetadata] = useAtom(primitiveMetadataAtom)
-  const { logout, login, loggedIn } = useLogin()
+  const { login, accountId } = useLogin()
+  const setSyncAccount = useSetAtom(syncAccountAtom)
+  useLayoutEffect(() => {
+    setSyncAccount(accountId ?? null)
+  }, [accountId, setSyncAccount])
   const toaster = useToast()
+  const [downloadAttempt, retryDownload] = useReducer(count => count + 1, 0)
+  const [uploadAttempt, retryUpload] = useReducer(count => count + 1, 0)
 
-  useDebounce(async () => {
-    const fn = async () => {
-      try {
-        await uploadMetadata(primitiveMetadata)
-      } catch (e: any) {
-        if (e.statusCode !== 506) {
-          toaster("身份校验失败，无法同步，请重新登录", {
-            type: "error",
-            action: {
-              label: "登录",
-              onClick: login,
-            },
-          })
-          logout()
-        }
-      }
-    }
+  const lastUploadAttempt = useRef(0)
 
-    if (loggedIn && primitiveMetadata.action === "manual") {
-      fn()
+  const reportFailure = useCallback((error: unknown, retry: () => void) => {
+    const status = (error as { statusCode?: number } | null)?.statusCode
+    if (status === 506) return
+    if (status === 401) {
+      toaster("登录已过期，请重新登录以同步关注和排序。", {
+        type: "warning", action: { label: "登录", onClick: login },
+      })
+      return
     }
-  }, 10000, [primitiveMetadata, loggedIn])
+    toaster("同步暂时失败，当前设置已保留在本机。", {
+      type: "warning", action: { label: "重试同步", onClick: retry },
+    })
+  }, [login, toaster])
+
   useEffect(() => {
-    if (!loggedIn) return
-    const fn = async () => {
-      try {
-        const metadata = await downloadMetadata()
-        if (metadata) {
-          setPrimitiveMetadata(preprocessMetadata(metadata))
-        }
-      } catch (e: any) {
-        if (e.statusCode !== 506) {
-          toaster("身份校验失败，无法同步，请重新登录", {
-            type: "error",
-            action: {
-              label: "登录",
-              onClick: login,
-            },
-          })
-          logout()
-        }
-      }
+    const owner = primitiveMetadata.pendingSyncFor
+    if (!accountId || owner === undefined || (owner !== null && owner !== accountId)) return
+    let active = true
+    const retrying = uploadAttempt !== lastUploadAttempt.current
+    lastUploadAttempt.current = uploadAttempt
+    const timer = setTimeout(() => {
+      uploadMetadata(primitiveMetadata).then(ack => {
+        if (!active || !ack.success) return
+        setPrimitiveMetadata(current => {
+          if (current.updatedTime !== primitiveMetadata.updatedTime) return current
+          if (ack.data && ack.updatedTime !== undefined) {
+            return preprocessMetadata({
+              data: ack.data, updatedTime: ack.updatedTime, manualOrderByColumn: ack.manualOrderByColumn, action: "sync",
+            })
+          }
+          // Older servers acknowledge the timestamp without returning the snapshot.
+          if (ack.updatedTime !== current.updatedTime) return current
+          return { ...current, action: "sync", pendingSyncFor: undefined }
+        })
+      }).catch(error => {
+        if (active) reportFailure(error, retryUpload)
+      })
+    }, retrying || primitiveMetadata.action === "init" ? 0 : 10000)
+    return () => {
+      active = false
+      clearTimeout(timer)
     }
-    fn()
-  }, [loggedIn, login, logout, setPrimitiveMetadata, toaster])
+  }, [accountId, primitiveMetadata, reportFailure, setPrimitiveMetadata, uploadAttempt])
+
+  useEffect(() => {
+    if (!accountId) return
+    let active = true
+    downloadMetadata().then(metadata => {
+      if (active && metadata) {
+        // Only an upload acknowledgement can clear an equal-revision pending edit.
+        setPrimitiveMetadata(current => metadata.updatedTime > current.updatedTime ? preprocessMetadata(metadata) : current)
+      }
+    }).catch(error => {
+      if (active) reportFailure(error, retryDownload)
+    })
+    return () => { active = false }
+  }, [accountId, downloadAttempt, reportFailure, setPrimitiveMetadata])
 }

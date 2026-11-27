@@ -1,9 +1,9 @@
+import * as Dialog from "@radix-ui/react-dialog"
 import { Command } from "cmdk"
 import type { SourceID } from "@shared/types"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import pinyin from "@shared/pinyin.json"
-import { OverlayScrollbar } from "../overlay-scrollbar"
 import { CardWrapper } from "~/components/column/card"
 
 import "./cmdk.css"
@@ -57,7 +57,7 @@ const getIconStyle = (id: string, metadata: any) => {
 
 export function SearchBar() {
   const { opened, toggle } = useSearchBar()
-  const { data: catData } = useSourceCategories()
+  const { data: catData, isError: directoryError, isLoading: directoryLoading, refetch: reloadDirectory } = useSourceCategories()
 
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -69,7 +69,7 @@ export function SearchBar() {
     return () => clearTimeout(handler)
   }, [query])
 
-  const { data: searchResults, isFetching, isError } = useQuery({
+  const { data: searchResults, isFetching, isError, refetch } = useQuery({
     queryKey: ["search", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return null
@@ -88,7 +88,8 @@ export function SearchBar() {
         }>
       }>(`/search?q=${encodeURIComponent(debouncedQuery)}`)
     },
-    enabled: debouncedQuery.trim().length > 0,
+    enabled: opened && debouncedQuery.trim().length > 0,
+    retry: false,
     staleTime: 5000,
   })
 
@@ -125,7 +126,8 @@ export function SearchBar() {
   }, [catData])
 
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const [value, setValue] = useState<SourceID>("github-trending-today")
+  const returnFocus = useRef<HTMLElement | null>(null)
+  const [preferredValue, setPreferredValue] = useState("")
 
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
@@ -140,111 +142,133 @@ export function SearchBar() {
     }
   }, [toggle])
 
-  // Synchronize CMDK value change to right pane preview card
-  const handleValueChange = (v: string) => {
-    if (v.startsWith("article:")) {
-      const parts = v.split(":")
-      const srcId = parts[1] as SourceID
-      const allMeta = catData?.metadata || {}
-      if (srcId in sources || srcId in allMeta) {
-        setValue(srcId)
-      }
-    } else {
-      const allMeta = catData?.metadata || {}
-      if (v in sources || v in allMeta) {
-        setValue(v as SourceID)
-      }
-    }
-  }
-
   const hasSearchQuery = query.trim().length > 0
   const searching = hasSearchQuery && (query !== debouncedQuery || isFetching)
-  const showPreview = !hasSearchQuery || (!searching && !isError && !!searchResults && (
-    searchResults.sources.some(source => source.id === value) || searchResults.items.some(item => item.sourceId === value)
-  ))
+  const options = useMemo(() => {
+    const entries = new Map<string, SourceID>()
+    if (!hasSearchQuery) {
+      for (const group of sourceItems) {
+        for (const source of group.sources) entries.set(source.id, source.id)
+      }
+    } else if (!searching && !isError && searchResults) {
+      for (const source of searchResults.sources) entries.set(source.id, source.id)
+      for (const item of searchResults.items) entries.set(articleValue(item), item.sourceId)
+    }
+    return entries
+  }, [hasSearchQuery, searching, isError, searchResults, sourceItems])
+  const value = options.has(preferredValue) ? preferredValue : options.keys().next().value ?? ""
+  const previewId = options.get(value)
 
   return (
-    <Command.Dialog
-      open={opened}
-      onOpenChange={toggle}
-      label="搜索新闻和来源"
-      value={value}
-      onValueChange={handleValueChange}
-      shouldFilter={false} // Use backend search results directly
-    >
-      <div className="flex items-center border-b border-white/10 pr-3">
-        <Command.Input
-          ref={inputRef}
-          autoFocus
-          aria-label="搜索新闻和来源"
-          placeholder="搜索新闻或来源"
-          value={query}
-          onValueChange={setQuery}
-        />
-        <button type="button" onClick={() => toggle(false)} aria-label="关闭搜索" className="w-10 h-10 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">
-          <span className="i-ph:x text-lg" aria-hidden="true" />
-        </button>
-      </div>
-      <p className="px-4 pt-3 text-xs text-neutral-400">选择来源可关注或取消关注；选择新闻可打开原文。</p>
-      <div className="md:flex pt-2">
-        <OverlayScrollbar defer className="overflow-y-auto md:min-w-275px">
-          <Command.List>
-            {searching ? (
-              <p className="px-1 py-4 text-sm text-neutral-400" role="status">正在搜索…</p>
-            ) : hasSearchQuery && isError ? (
-              <p className="px-1 py-4 text-sm text-neutral-400" role="status">搜索暂时不可用，请稍后重试。</p>
-            ) : hasSearchQuery && searchResults ? (
-              <>
-                {searchResults.sources.length > 0 && (
-                  <Command.Group heading="来源">
-                    {searchResults.sources.map(src => (
-                      <SourceItem
-                        key={src.id}
-                        item={{
-                          id: src.id,
-                          name: src.name,
-                          title: src.title,
-                          column: src.column,
-                          pinyin: ""
-                        }}
-                        metadata={catData?.metadata}
-                      />
-                    ))}
-                  </Command.Group>
+    <Dialog.Root open={opened} onOpenChange={toggle}>
+      <Dialog.Portal>
+        <Dialog.Overlay cmdk-overlay="" />
+        <Dialog.Content
+          cmdk-dialog=""
+          aria-describedby={undefined}
+          onOpenAutoFocus={event => {
+            event.preventDefault()
+            returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+            inputRef.current?.focus()
+          }}
+          onCloseAutoFocus={event => {
+            event.preventDefault()
+            const target = returnFocus.current
+            const trigger = target?.isConnected && target !== document.body ? target : document.getElementById("open-news-search")
+            trigger?.focus({ preventScroll: true })
+          }}
+        >
+          <Dialog.Title className="sr-only">搜索新闻和来源</Dialog.Title>
+          <Command label="搜索新闻和来源" value={value} onValueChange={setPreferredValue} shouldFilter={false}>
+            <div className="flex items-center border-b border-white/10 pr-3">
+              <Command.Input
+                ref={inputRef}
+                aria-label="搜索新闻和来源"
+                placeholder="搜索新闻或来源"
+                value={query}
+                onValueChange={setQuery}
+              />
+              <button type="button" onClick={() => toggle(false)} aria-label="关闭搜索" className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">
+                <span className="i-ph:x text-lg" aria-hidden="true" />
+              </button>
+            </div>
+            <p className="px-4 pt-3 text-xs text-neutral-400">选择来源可关注或取消关注；选择新闻可打开原文。</p>
+            <div className="search-panes">
+              <Command.List>
+                {searching ? (
+                  <p className="px-1 py-4 text-sm text-neutral-400" role="status">正在搜索…</p>
+                ) : hasSearchQuery && isError ? (
+                  <div className="px-1 py-3 text-sm text-neutral-400">
+                    <p role="status">搜索暂时不可用。</p>
+                    <button type="button" className="min-h-11 text-red-300 underline" onClick={() => {
+                      inputRef.current?.focus()
+                      void refetch()
+                    }}>重新搜索</button>
+                  </div>
+                ) : hasSearchQuery && searchResults ? (
+                  <>
+                    {searchResults.sources.length > 0 && (
+                      <Command.Group heading="来源">
+                        {searchResults.sources.map(src => (
+                          <SourceItem
+                            key={src.id}
+                            item={{
+                              id: src.id,
+                              name: src.name,
+                              title: src.title,
+                              column: src.column,
+                              pinyin: ""
+                            }}
+                            metadata={catData?.metadata}
+                          />
+                        ))}
+                      </Command.Group>
+                    )}
+                    {searchResults.items.length > 0 && (
+                      <Command.Group heading="相关新闻">
+                        {searchResults.items.map(item => (
+                          <NewsItemRow
+                            key={articleValue(item)}
+                            item={item}
+                            metadata={catData?.metadata}
+                          />
+                        ))}
+                      </Command.Group>
+                    )}
+                    {searchResults.sources.length === 0 && searchResults.items.length === 0 && !isFetching && (
+                      <p className="px-1 py-4 text-sm text-neutral-400" role="status">没有找到结果，试试其他关键词。</p>
+                    )}
+                  </>
+                ) : !sourceItems.length ? (
+                  <div className="px-1 py-3 text-sm text-neutral-400">
+                    <p role="status">
+                      {directoryLoading ? "正在加载来源清单…" : directoryError ? "来源清单暂时无法加载，仍可输入关键词搜索新闻。" : "暂无可浏览的来源，可输入关键词搜索新闻。"}
+                    </p>
+                    {directoryError && (
+                      <button type="button" className="min-h-11 text-red-300 underline" onClick={() => {
+                        inputRef.current?.focus()
+                        void reloadDirectory()
+                      }}>重试来源清单</button>
+                    )}
+                  </div>
+                ) : (
+                  sourceItems.map(({ column, sources }) => (
+                    <Command.Group heading={column} key={column}>
+                      {sources.map(item => (
+                        <SourceItem item={item} key={item.id} metadata={catData?.metadata} />
+                      ))}
+                    </Command.Group>
+                  ))
                 )}
-                {searchResults.items.length > 0 && (
-                  <Command.Group heading="相关新闻">
-                    {searchResults.items.map(item => (
-                      <NewsItemRow
-                        key={item.id}
-                        item={item}
-                        metadata={catData?.metadata}
-                      />
-                    ))}
-                  </Command.Group>
-                )}
-                {searchResults.sources.length === 0 && searchResults.items.length === 0 && !isFetching && (
-                  <p className="px-1 py-4 text-sm text-neutral-400" role="status">没有找到结果，试试其他关键词。</p>
-                )}
-              </>
-            ) : (
-              sourceItems.map(({ column, sources }) => (
-                <Command.Group heading={column} key={column}>
-                  {sources.map(item => (
-                    <SourceItem item={item} key={item.id} metadata={catData?.metadata} />
-                  ))}
-                </Command.Group>
-              ))
-            )}
-          </Command.List>
-        </OverlayScrollbar>
-        <div className="flex-1 pt-2 px-4 min-w-350px max-md:hidden">
-          {showPreview
-            ? <CardWrapper id={value} />
-            : <p className="py-6 text-sm text-neutral-400">选择一个结果，查看对应来源。</p>}
-        </div>
-      </div>
-    </Command.Dialog>
+              </Command.List>
+              <div className="search-preview">
+                {previewId && <CardWrapper id={previewId} />}
+              </div>
+            </div>
+          </Command>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
@@ -277,11 +301,15 @@ function SourceItem({ item, metadata }: {
   )
 }
 
+function articleValue(item: { sourceId: SourceID, id: string | number }) {
+  return `article:${item.sourceId}:${item.id}`
+}
+
 function NewsItemRow({ item, metadata }: { item: any, metadata: any }) {
   const relativeTime = useRelativeTime(item.pubDate)
   return (
     <Command.Item
-      value={`article:${item.sourceId}:${item.id}`}
+      value={articleValue(item)}
       className="flex justify-between items-center p-2 cursor-pointer rounded-md hover:bg-white/[0.05] aria-selected:bg-white/[0.08]"
       onSelect={() => {
         const width = window.innerWidth

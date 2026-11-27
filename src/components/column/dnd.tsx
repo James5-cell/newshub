@@ -1,19 +1,16 @@
 import type { PropsWithChildren } from "react"
-import type { FixedColumnID, PrimitiveMetadata, SourceID  } from "@shared/types"
+import type { SourceID} from "@shared/types"
 import type { BaseEventPayload, ElementDragType } from "@atlaskit/pragmatic-drag-and-drop/dist/types/internal-types"
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { reorderWithEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge"
 import { createPortal } from "react-dom"
 import { useThrottleFn } from "ahooks"
 import { useAutoAnimate } from "@formkit/auto-animate/react"
-import { motion } from "framer-motion"
-import { useWindowSize } from "react-use"
-import { isMobile } from "react-device-detect"
+import { useMedia } from "react-use"
 import { sources } from "@shared/sources"
 import { Link } from "@tanstack/react-router"
 import { DndContext } from "../common/dnd"
 import { useSortable } from "../common/dnd/useSortable"
-import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import type { ItemsProps } from "./card"
 import { CardWrapper } from "./card"
 import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
@@ -23,12 +20,6 @@ import { useSourceOverrides } from "~/hooks/useSourceOverrides"
 import { useSourceCategories } from "~/hooks/useSourceCategories"
 
 const AnimationDuration = 200
-const WIDTH = 350
-
-function sameStringArrayOrder(a: string[] | undefined, b: string[] | undefined) {
-  if (!a?.length || !b?.length || a.length !== b.length) return false
-  return a.every((id, i) => String(id) === String(b[i]))
-}
 
 export function Dnd() {
   const [items] = useAtom(currentSourcesAtom)
@@ -38,35 +29,14 @@ export function Dnd() {
   const customSourceIds = useCustomSourceIds(currentColumnID)
   const { hiddenSourceIds } = useSourceOverrides()
   // 初始化動態源 metadata map（供 card.tsx 渲染用）
-  useCustomSourceMap()
+  const customMap = useCustomSourceMap()
 
   const { data: catData, isError: isCatError } = useSourceCategories()
-
-  // 未手動拖曳的分頁：本機 data 與站方 GET /source-categories 排序對齊（Admin 改權重後訪客會拿到最新順序）
-  useEffect(() => {
-    if (!catData || isCatError || currentColumnID === "focus") return
-    if (manualOrderByColumn[currentColumnID]) return
-    const catList = catData.categories[currentColumnID as keyof typeof catData.categories]
-    if (!catList?.length) return
-    setMetadata((prev) => {
-      const cur = prev.data[currentColumnID] as SourceID[]
-      if (sameStringArrayOrder(cur as string[], catList as string[])) return prev
-      return {
-        ...prev,
-        updatedTime: Date.now(),
-        action: "sync",
-        data: {
-          ...prev.data,
-          [currentColumnID]: catList as SourceID[],
-        },
-      }
-    })
-  }, [catData, isCatError, currentColumnID, manualOrderByColumn[currentColumnID], setMetadata])
 
   const allItems = useMemo(() => {
     const manual = !!manualOrderByColumn[currentColumnID]
 
-    if (catData && !isCatError) {
+    if (catData) {
       if (currentColumnID === "focus") {
         return items as SourceID[]
       }
@@ -103,11 +73,49 @@ export function Dnd() {
 
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
   useEntireQuery(allItems)
-  const { width } = useWindowSize()
-  const minWidth = useMemo(() => {
-    // double padding = 32
-    return Math.min(width - 32, WIDTH)
-  }, [width])
+  const compact = useMedia("(max-width: 767px)")
+  const rail = useRef<HTMLOListElement>(null)
+  const setRail = useCallback((node: HTMLOListElement | null) => {
+    rail.current = node
+    parent(node)
+  }, [parent])
+  const [position, setPosition] = useState(0)
+  const [announcement, announce] = useState("")
+  const index = Math.max(0, Math.min(position, allItems.length - 1))
+  const activeId = allItems[index]
+  const nameOf = (id: SourceID) => catData?.metadata?.[id]?.name || sources[id]?.name || customMap[id]?.name || id
+
+  const saveOrder = useCallback((order: SourceID[]) => {
+    setMetadata(prev => ({
+      ...prev,
+      updatedTime: Date.now(),
+      action: "manual",
+      manualOrderByColumn: currentColumnID === "focus"
+        ? prev.manualOrderByColumn
+        : { ...prev.manualOrderByColumn, [currentColumnID]: true },
+      data: { ...prev.data, [currentColumnID]: order },
+    }))
+  }, [currentColumnID, setMetadata])
+
+  const goTo = (nextIndex: number) => {
+    const list = rail.current
+    const card = list?.children[nextIndex] as HTMLElement | undefined
+    if (list && card) list.scrollLeft = card.offsetLeft - (list.children[0] as HTMLElement).offsetLeft
+  }
+
+  const move = (from: number, direction: number) => {
+    const to = from + direction
+    if (to < 0 || to >= allItems.length) return
+    const order = [...allItems]
+    const [moved] = order.splice(from, 1)
+    order.splice(to, 0, moved)
+    saveOrder(order)
+    announce(`${nameOf(moved)}已移至第 ${to + 1} 位，共 ${order.length} 个来源`)
+    requestAnimationFrame(() => {
+      if (compact) goTo(to)
+      document.getElementById(`order-${moved}`)?.focus({ preventScroll: true })
+    })
+  }
 
   if (!allItems.length) {
     return (
@@ -124,49 +132,51 @@ export function Dnd() {
   }
 
   return (
-    <DndWrapper items={allItems} setMetadata={setMetadata} columnId={currentColumnID} isSingleColumn={isMobile}>
-      <OverlayScrollbar defer className="overflow-x-auto">
-        <motion.ol
-          className={isMobile
-            ? "flex px-2 gap-5 pb-4 scroll-smooth"
-            : "grid w-full gap-5"}
-          ref={parent}
-          style={isMobile
-            ? {
-                // 横向滚动布局
-              }
-            : {
-                gridTemplateColumns: `repeat(auto-fill, minmax(${minWidth}px, 1fr))`,
-              }}
-        >
-          {allItems.map((id, index) => (
-            <motion.li
-              key={id}
-              className={$(isMobile && "flex-shrink-0", isMobile && index === allItems.length - 1 && "mr-2")}
-              style={isMobile ? { width: `${width - 16 > WIDTH ? WIDTH : width - 16}px` } : undefined}
-              transition={{
-                type: "tween",
-                duration: AnimationDuration / 1000,
-              }}
-            >
-              <SortableCardWrapper id={id} />
-            </motion.li>
-          ))}
-        </motion.ol>
-      </OverlayScrollbar>
-      {isMobile && (
-        <div className="flex justify-center">
-          <span className="text-sm text-gray-500 text-center">左右滑动查看更多</span>
-        </div>
+    <DndWrapper items={allItems} onReorder={saveOrder} isSingleColumn={compact}>
+      {compact && allItems.length > 1 && (
+        <nav aria-label="切换新闻来源" className="flex items-center justify-between gap-3 px-3 mb-2">
+          <div className="min-w-0 flex items-baseline gap-2 text-sm" aria-live="polite" aria-atomic="true">
+            <span className="truncate font-medium text-neutral-200">{nameOf(activeId)}</span>
+            <span className="shrink-0 text-xs text-neutral-400 tabular-nums">{index + 1} / {allItems.length}</span>
+          </div>
+          <div className="flex gap-1">
+            {([-1, 1] as const).map(step => (
+              <button key={step} type="button" aria-label={step === -1 ? "上一个来源" : "下一个来源"}
+                disabled={index + step < 0 || index + step >= allItems.length}
+                onClick={() => goTo(index + step)}
+                className="grid h-11 w-11 place-items-center rounded-lg border border-white/12 text-neutral-200 hover:bg-white/5 disabled:opacity-35"
+              >
+                <span className={step === -1 ? "i-ph:caret-left-bold" : "i-ph:caret-right-bold"} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </nav>
       )}
+      <ol
+        ref={setRail}
+        className={compact ? "relative flex overflow-x-auto snap-x snap-mandatory gap-3 px-2 pb-3" : "grid gap-5"}
+        style={compact ? undefined : { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 350px), 1fr))" }}
+        onScroll={compact ? event => {
+          const list = event.currentTarget
+          if (list.children.length < 2) return
+          const stride = (list.children[1] as HTMLElement).offsetLeft - (list.children[0] as HTMLElement).offsetLeft
+          if (stride > 0) setPosition(Math.round(list.scrollLeft / stride))
+        } : undefined}
+      >
+        {allItems.map((id, i) => (
+          <li key={id} className={compact ? "w-full shrink-0 snap-center" : "min-w-0"}>
+            <SortableCardWrapper id={id} order={{ first: i === 0, last: i === allItems.length - 1, move: step => move(i, step) }} />
+          </li>
+        ))}
+      </ol>
+      <p className="sr-only" role="status">{announcement}</p>
     </DndWrapper>
   )
 }
 
-function DndWrapper({ items, setMetadata, columnId, isSingleColumn, children }: PropsWithChildren<{
+function DndWrapper({ items, onReorder, isSingleColumn, children }: PropsWithChildren<{
   items: SourceID[]
-  setMetadata: (update: PrimitiveMetadata | ((prev: PrimitiveMetadata) => PrimitiveMetadata)) => void
-  columnId: FixedColumnID
+  onReorder: (order: SourceID[]) => void
   isSingleColumn: boolean
 }>) {
   const onDropTargetChange = useCallback(({ location, source }: BaseEventPayload<ElementDragType>) => {
@@ -183,19 +193,8 @@ function DndWrapper({ items, setMetadata, columnId, isSingleColumn, children }: 
       closestEdgeOfTarget,
       axis: isSingleColumn ? "horizontal" : "vertical",
     })
-    setMetadata((prev) => ({
-      ...prev,
-      updatedTime: Date.now(),
-      action: "manual",
-      manualOrderByColumn: columnId !== "focus"
-        ? { ...prev.manualOrderByColumn, [columnId]: true }
-        : prev.manualOrderByColumn,
-      data: {
-        ...prev.data,
-        [columnId]: update,
-      },
-    }))
-  }, [items, setMetadata, isSingleColumn, columnId])
+    onReorder(update)
+  }, [items, onReorder, isSingleColumn])
   // 避免动画干扰
   const { run } = useThrottleFn(onDropTargetChange, {
     leading: true,
@@ -250,7 +249,7 @@ function CardOverlay({ id }: { id: SourceID }) {
   )
 }
 
-function SortableCardWrapper({ id }: ItemsProps) {
+function SortableCardWrapper({ id, order }: ItemsProps) {
   const {
     isDragging,
     setNodeRef,
@@ -269,6 +268,7 @@ function SortableCardWrapper({ id }: ItemsProps) {
       <CardWrapper
         ref={setNodeRef}
         id={id}
+        order={order}
         isDragging={isDragging}
         setHandleRef={setHandleRef}
       />

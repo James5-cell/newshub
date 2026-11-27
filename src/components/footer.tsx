@@ -28,7 +28,7 @@ export function Footer() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 text-neutral-500">
+      <div className="flex flex-wrap items-center justify-center gap-3 text-neutral-400">
         <Link to="/about" className="hover:text-neutral-200 transition-colors">
           关于 NewsHub
         </Link>

@@ -14,18 +14,16 @@ export const mascotHiddenAtom = atom(
 
 export const focusSourcesAtom = atom((get) => {
   return get(primitiveMetadataAtom).data.focus
-}, (get, set, update: Update<SourceID[]>) => {
-  const _ = update instanceof Function ? update(get(focusSourcesAtom)) : update
-  const prev = get(primitiveMetadataAtom)
-  set(primitiveMetadataAtom, {
+}, (_get, set, update: Update<SourceID[]>) => {
+  set(primitiveMetadataAtom, prev => ({
     ...prev,
     updatedTime: Date.now(),
     action: "manual",
     data: {
       ...prev.data,
-      focus: _,
+      focus: typeof update === "function" ? update(prev.data.focus) : update,
     },
-  })
+  }))
 })
 
 export const currentColumnIDAtom = atom<FixedColumnID>("focus")

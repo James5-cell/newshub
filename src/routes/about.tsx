@@ -1,3 +1,4 @@
+import { useTitle } from "react-use"
 import { Link, createFileRoute } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/about")({
@@ -5,6 +6,7 @@ export const Route = createFileRoute("/about")({
 })
 
 function AboutComponent() {
+  useTitle("关于 NewsHub | NewsHub")
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "AboutPage",
@@ -84,7 +86,8 @@ function AboutComponent() {
           <a href="/llms-full.txt" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">llms-full.txt</a>
           <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" className="text-red-300 hover:text-red-200 underline underline-offset-4">网站地图</a>
         </div>
-        <p className="text-sm text-neutral-400 leading-relaxed">引用示例：NewsHub — postsoma-2050，https://news.postsoma-2050.com/</p>
+        <p className="text-sm text-neutral-400 leading-relaxed">新闻引用格式：〈文章标题〉，原发布媒体，发布日期，原文链接（经 NewsHub 发现）。</p>
+        <p className="text-sm text-neutral-400 leading-relaxed">网站引用示例：NewsHub — postsoma-2050，https://news.postsoma-2050.com/</p>
       </section>
 
       {/* Compliance & Footer Link */}

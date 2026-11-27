@@ -65,13 +65,15 @@ function Item({ info }: { info: ToastItem }) {
   }, [hidden, info.duration])
 
   const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const interacting = hovered || focused
   useEffect(() => {
-    if (hovered) {
+    if (interacting) {
       timer.current?.pause()
     } else {
       timer.current?.resume()
     }
-  }, [hovered])
+  }, [interacting])
 
   return (
     <motion.li
@@ -80,6 +82,10 @@ function Item({ info }: { info: ToastItem }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 12, scale: 0.92 }}
       transition={{ type: "spring", stiffness: 420, damping: 28 }}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={$([
@@ -101,7 +107,10 @@ function Item({ info }: { info: ToastItem }) {
           <button
             type="button"
             className="flex-shrink-0 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
-            onClick={info.action.onClick}
+            onClick={() => {
+              hidden(false)
+              info.action?.onClick()
+            }}
           >
             {info.action.label}
           </button>

@@ -1,3 +1,4 @@
+import { useTitle } from "react-use"
 import { safeStorage } from "@shared/storage"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, createFileRoute } from "@tanstack/react-router"
@@ -41,7 +42,8 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 function AdminPage() {
-  const { loggedIn, enableLogin, login } = useLogin()
+  useTitle("來源管理 | NewsHub")
+  const { loggedIn, enableLogin, login, checkingLogin, loginCheckFailed, retryLoginCheck } = useLogin()
   const queryClient = useQueryClient()
   const toaster = useToast()
 
@@ -57,7 +59,7 @@ function AdminPage() {
     retry: false,
   })
 
-  const { data: allSources = [], isLoading, refetch } = useQuery({
+  const { data: allSources = [], isLoading, isError: sourcesError, refetch } = useQuery({
     queryKey: ["admin-sources"],
     queryFn: async () => {
       const res: AdminSource[] = await myFetch("/admin/sources", {
@@ -154,6 +156,49 @@ function AdminPage() {
   const [editingSource, setEditingSource] = useState<AdminSource | null>(null)
   const [showForm, setShowForm] = useState(false)
 
+  const formRef = useRef<HTMLDivElement>(null)
+  const formSaving = showForm && (createMutation.isPending || updateMutation.isPending)
+  const openForm = (source: AdminSource | null) => {
+    if (showForm && source?.id === editingSource?.id) {
+      formRef.current?.querySelector<HTMLInputElement>("input")?.focus()
+      return
+    }
+    if (showForm && formRef.current?.querySelector("form[data-dirty=true]")) {
+      if (!window.confirm("目前有尚未儲存的變更。要捨棄草稿並切換來源嗎？")) return
+    }
+    createMutation.reset()
+    updateMutation.reset()
+    setEditingSource(source)
+    setShowForm(true)
+  }
+  const closeForm = () => {
+    setEditingSource(null)
+    setShowForm(false)
+  }
+
+  useEffect(() => {
+    if (showForm) formRef.current?.querySelector<HTMLInputElement>("input")?.focus()
+  }, [showForm, editingSource?.id])
+
+  if (checkingLogin || checkingAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] gap-3" role="status">
+        <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
+        <span className="text-sm text-neutral-400">{checkingLogin ? "正在確認登入狀態…" : "正在確認管理員權限…"}</span>
+      </div>
+    )
+  }
+
+  if (loginCheckFailed || adminCheckError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" role="status">
+        <p className="text-sm text-neutral-300">{loginCheckFailed ? "無法確認登入狀態，請稍後重試。" : "無法確認管理員權限，請稍後重試。"}</p>
+        <button type="button" onClick={() => loginCheckFailed ? retryLoginCheck() : retryAdminCheck()} className="text-sm text-red-300 hover:text-red-200 underline underline-offset-4">重試</button>
+        <Link to="/" className="text-sm text-neutral-400 hover:text-white">返回首頁</Link>
+      </div>
+    )
+  }
+
   if (!enableLogin || !loggedIn) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
@@ -163,25 +208,6 @@ function AdminPage() {
         <Link to="/" className="text-xs op-50 hover:op-80 transition-opacity">
           返回首頁
         </Link>
-      </div>
-    )
-  }
-
-  if (checkingAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] gap-3" role="status">
-        <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
-        <span className="text-sm text-neutral-400">正在確認管理員權限…</span>
-      </div>
-    )
-  }
-
-  if (adminCheckError) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" role="status">
-        <p className="text-sm text-neutral-300">無法確認管理員權限，請稍後重試。</p>
-        <button type="button" onClick={() => retryAdminCheck()} className="text-sm text-red-300 hover:text-red-200 underline underline-offset-4">重試</button>
-        <Link to="/" className="text-sm text-neutral-400 hover:text-white">返回首頁</Link>
       </div>
     )
   }
@@ -210,7 +236,7 @@ function AdminPage() {
           {!showForm && !editingSource && (
             <button
               type="button"
-              onClick={() => setShowForm(true)}
+              onClick={() => openForm(null)}
               className="text-xs px-3 py-1.5 rounded-md border border-white/8 op-60 hover:op-100 hover:border-white/20 transition-all duration-300"
             >
               新增來源
@@ -226,6 +252,7 @@ function AdminPage() {
       <AnimatePresence>
         {(showForm || editingSource) && (
           <motion.div
+            ref={formRef}
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
@@ -233,66 +260,64 @@ function AdminPage() {
             className="overflow-hidden mb-10"
           >
             <AddSourceForm
+              key={editingSource?.id ?? "new-source"}
               editingSource={editingSource}
               onSubmit={(data) => {
                 if (editingSource) {
-                  updateMutation.mutate({ id: editingSource.id, ...data })
-                  setEditingSource(null)
+                  updateMutation.mutate({ id: editingSource.id, ...data }, { onSuccess: closeForm })
                 } else {
-                  createMutation.mutate(data)
+                  createMutation.mutate(data, { onSuccess: closeForm })
                 }
-                setShowForm(false)
               }}
-              onCancelEdit={() => {
-                setEditingSource(null)
-                setShowForm(false)
-              }}
-              isLoading={createMutation.isPending || updateMutation.isPending}
-              error={createMutation.error || updateMutation.error}
+              onCancelEdit={closeForm}
+              isLoading={formSaving}
+              error={editingSource ? updateMutation.error : createMutation.error}
             />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Dynamic sources */}
-      {allSources.length > 0 && (
-        <section className="mb-14">
-          <div className="flex items-baseline justify-between mb-5">
-            <h2 className="text-sm font-medium op-60 tracking-wide">動態來源</h2>
-            <span className="text-[10px] op-25">{allSources.length} 項</span>
-          </div>
+      <section className="mb-14">
+        <div className="flex items-baseline justify-between mb-5">
+          <h2 className="text-sm font-medium op-60 tracking-wide">動態來源</h2>
+          {!sourcesError && !isLoading && <span className="text-xs text-neutral-400">{allSources.length} 項</span>}
+        </div>
 
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <span className="i-ph:circle-dashed-duotone text-xl animate-spin op-20" />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-px rounded-xl overflow-hidden border border-white/5">
-              {allSources.map(source => (
-                <SourceRow
-                  key={source.id}
-                  source={source}
-                  onToggle={() => updateMutation.mutate({
-                    id: source.id,
-                    is_active: source.is_active ? 0 : 1,
-                  })}
-                  onEdit={() => {
-                    setEditingSource(source)
-                    setShowForm(true)
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                  }}
-                  onDelete={() => {
-                    if (confirm(`確定要刪除「${source.name}」嗎？`)) {
-                      deleteMutation.mutate(source.id)
-                    }
-                  }}
-                  isUpdating={updatingDynamicId === source.id}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+        {isLoading ? (
+          <p role="status" className="text-sm text-neutral-400">正在載入動態來源…</p>
+        ) : sourcesError && !allSources.length ? (
+          <div role="status" className="flex items-center gap-3 text-sm text-neutral-300">
+            <span>無法載入動態來源。</span>
+            <button type="button" onClick={() => refetch()} className="min-h-11 text-red-300 underline">重試</button>
+          </div>
+        ) : !allSources.length ? (
+          <div className="flex items-center gap-3 text-sm text-neutral-400">
+            <span>尚無動態來源。</span>
+            {!showForm && <button type="button" onClick={() => openForm(null)} className="min-h-11 text-red-300 underline">新增第一個來源</button>}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-px rounded-xl overflow-hidden border border-white/5">
+            {allSources.map(source => (
+              <SourceRow
+                key={source.id}
+                source={source}
+                onToggle={() => updateMutation.mutate({
+                  id: source.id,
+                  is_active: source.is_active ? 0 : 1,
+                })}
+                onEdit={() => openForm(source)}
+                onDelete={() => {
+                  if (confirm(`確定要刪除「${source.name}」嗎？`)) {
+                    deleteMutation.mutate(source.id)
+                  }
+                }}
+                isUpdating={formSaving || updatingDynamicId === source.id}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Static sources */}
       <StaticSourceManager isAdmin={adminCheck?.isAdmin === true} />
@@ -777,6 +802,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected,
         {/* Checkbox for bulk select */}
         <input
           type="checkbox"
+          aria-label={`選取${source.name}`}
           checked={selected}
           onChange={onSelect}
           className="accent-white/50 cursor-pointer w-3.5 h-3.5"
@@ -816,7 +842,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected,
           >
             <span className="i-ph:sliders-horizontal-duotone text-sm inline-block" />
           </button>
-          
+
           <button
             type="button"
             onClick={onDelete}
@@ -925,51 +951,29 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
   isLoading: boolean
   error: Error | null
 }) {
-  const [name, setName] = useState("")
-  const [provider, setProvider] = useState("rss")
-  const [feedUrl, setFeedUrl] = useState("")
-  const [subdomain, setSubdomain] = useState("")
-  const [homeUrl, setHomeUrl] = useState("")
-  const [type, setType] = useState("")
-  const [columnId, setColumnId] = useState("world")
-  const [color, setColor] = useState("blue")
-  const [isMainstream, setIsMainstream] = useState(0)
-  const [priorityWeight, setPriorityWeight] = useState(0)
-  const [tags, setTags] = useState("")
-  const [badgeLabel, setBadgeLabel] = useState("")
-  const [showAdvanced, setShowAdvanced] = useState(false)
-
-  // Autodiscovery states
-  const [inputUrl, setInputUrl] = useState("")
+  const [name, setName] = useState(editingSource?.name ?? "")
+  const [provider, setProvider] = useState(editingSource?.provider || "rss")
+  const [feedUrl, setFeedUrl] = useState(editingSource?.feed_url ?? "")
+  const [subdomain, setSubdomain] = useState(editingSource?.subdomain ?? "")
+  const [homeUrl, setHomeUrl] = useState(editingSource?.home_url ?? "")
+  const [type, setType] = useState(editingSource?.type ?? "")
+  const [columnId, setColumnId] = useState(editingSource?.column_id ?? "world")
+  const [color, setColor] = useState(editingSource?.color ?? "blue")
+  const [isMainstream, setIsMainstream] = useState(editingSource?.is_mainstream_media ?? 0)
+  const [priorityWeight, setPriorityWeight] = useState(editingSource?.priority_weight ?? 0)
+  const [tags, setTags] = useState<string>(() => {
+    try { return JSON.parse(editingSource?.tags || "[]").join(", ") } catch { return "" }
+  })
+  const [badgeLabel, setBadgeLabel] = useState(editingSource?.badge_label ?? "")
+  const [showAdvanced, setShowAdvanced] = useState(Boolean(editingSource))
+  const [inputUrl, setInputUrl] = useState(editingSource?.feed_url || editingSource?.home_url || "")
   const [discoveredFeeds, setDiscoveredFeeds] = useState<{ title: string; url: string; type: string }[]>([])
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [discoverError, setDiscoverError] = useState("")
 
-  useEffect(() => {
-    if (editingSource) {
-      setName(editingSource.name)
-      setProvider(editingSource.provider || "rss")
-      setFeedUrl(editingSource.feed_url || "")
-      setSubdomain(editingSource.subdomain || "")
-      setHomeUrl(editingSource.home_url || "")
-      setInputUrl(editingSource.feed_url || editingSource.home_url || "")
-      setType(editingSource.type)
-      setColumnId(editingSource.column_id)
-      setColor(editingSource.color)
-      setIsMainstream(editingSource.is_mainstream_media ?? 0)
-      setPriorityWeight(editingSource.priority_weight ?? 0)
-      setBadgeLabel(editingSource.badge_label ?? "")
-      try { setTags(JSON.parse(editingSource.tags || "[]").join(", ")) } catch { setTags("") }
-      setShowAdvanced(true)
-    } else {
-      setName(""); setProvider("rss"); setFeedUrl(""); setSubdomain(""); setHomeUrl(""); setInputUrl("")
-      setType(""); setColumnId("world"); setColor("blue")
-      setIsMainstream(0); setPriorityWeight(0); setTags(""); setBadgeLabel("")
-      setDiscoveredFeeds([])
-      setDiscoverError("")
-      setShowAdvanced(false)
-    }
-  }, [editingSource])
+  const fields = JSON.stringify([name, provider, feedUrl, subdomain, homeUrl, type, columnId, color,
+    isMainstream, priorityWeight, tags, badgeLabel, inputUrl])
+  const initialFields = useRef(fields)
 
   const handleDiscover = async () => {
     if (!inputUrl.trim()) return
@@ -1005,7 +1009,7 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (isLoading || !name.trim()) return
     if (provider === "buzzing" && !subdomain.trim()) return
     if (provider !== "buzzing" && !feedUrl.trim()) return
 
@@ -1030,308 +1034,308 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
       tags: JSON.stringify(parsedTags),
       badge_label: badgeLabel.trim(),
     })
-    if (!editingSource) {
-      setName(""); setProvider("rss"); setFeedUrl(""); setSubdomain(""); setHomeUrl(""); setInputUrl("")
-      setType(""); setColumnId("world"); setColor("blue")
-      setIsMainstream(0); setPriorityWeight(0); setTags(""); setBadgeLabel("")
-      setDiscoveredFeeds([])
-    }
+
   }
 
-  const inputClass = "w-full px-3 py-2 rounded-md bg-white/[0.03] border border-white/8 outline-none focus:border-white/20 transition-all duration-300 text-sm placeholder:op-25"
-  const labelClass = "text-[11px] op-40 mb-1.5 block tracking-wide"
+  const inputClass = "w-full px-3 py-2 rounded-md bg-white/[0.03] border border-white/8 focus-visible:outline-red-400 focus:border-red-400/60 transition-all duration-300 text-sm placeholder:op-25"
+  const labelClass = "text-xs text-neutral-300 mb-1.5 block"
 
   return (
     <form
+      data-dirty={fields !== initialFields.current}
+      aria-busy={isLoading}
       onSubmit={handleSubmit}
       className="p-6 rounded-xl border border-white/8 bg-white/[0.02]"
     >
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-sm font-medium op-70">
-          {editingSource ? `編輯：${editingSource.name}` : "新增來源"}
-        </h2>
-        <button
-          type="button"
-          onClick={onCancelEdit}
-          className="text-[11px] op-30 hover:op-60 transition-opacity duration-300"
-        >
-          取消
-        </button>
-      </div>
+      <fieldset disabled={isLoading} className="min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-sm font-medium op-70">
+            {editingSource ? `編輯：${editingSource.name}` : "新增來源"}
+          </h2>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+          >
+            取消
+          </button>
+        </div>
 
-      <div className="flex flex-col gap-5">
-        {/* URL Feed Autodiscovery Section */}
-        {!editingSource && (
-          <div className="border-b border-white/5 pb-5">
-            <label className={labelClass}>URL (網站或 RSS/Atom 訂閱連結)</label>
-            <div className="flex gap-2">
-              <input
-                className={inputClass}
-                placeholder="例如 https://example.com 或 https://example.com/feed.xml"
-                value={inputUrl}
-                onChange={e => setInputUrl(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={handleDiscover}
-                disabled={isDiscovering || !inputUrl.trim()}
-                className={$(
-                  "px-4 py-2 rounded-md text-xs font-medium border border-white/10 hover:border-white/25 hover:bg-white/5 whitespace-nowrap transition-all",
-                  (isDiscovering || !inputUrl.trim()) && "op-20 cursor-not-allowed"
-                )}
-              >
-                {isDiscovering ? "解析中..." : "解析與發現"}
-              </button>
-            </div>
-            {discoverError && (
-              <p className="text-[10px] text-red-400/70 mt-1">{discoverError}</p>
-            )}
-            
-            {/* Discovered feed options */}
-            {discoveredFeeds.length > 0 && (
-              <div className="mt-3 bg-white/[0.015] border border-white/5 rounded-md p-3">
-                <p className="text-[10px] op-40 mb-2 font-sans">請選擇訂閱源網址：</p>
-                <div className="flex flex-col gap-1.5 font-sans">
-                  {discoveredFeeds.map((f: any) => (
-                    <button
-                      key={f.url}
-                      type="button"
-                      onClick={() => {
-                        setFeedUrl(f.url)
-                        setProvider(f.type === "rsshub" ? "rsshub" : "rss")
-                      }}
-                      className={$(
-                        "text-left text-xs px-2.5 py-2 rounded transition-all duration-200 border flex flex-col gap-0.5",
-                        feedUrl === f.url ? "bg-white/5 border-white/20 text-white" : "bg-transparent border-white/5 text-white/50 hover:bg-white/[0.03]"
-                      )}
-                    >
-                      <span className="font-medium text-[11px] flex items-center gap-1.5">
-                        {f.title}
-                        {f.type === "rsshub" && <span className="text-[8px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-1 rounded">RSSHub</span>}
-                      </span>
-                      <span className="text-[9px] font-mono op-45 truncate block w-full">{f.url}</span>
-                      {f.note && (
-                        <span className="text-[9px] text-amber-400/80 leading-normal mt-1 border-t border-white/5 pt-1 mt-1 block">
-                          {f.note}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-6">
-          {/* Section 1: 基礎來源 */}
-          <div>
-            <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">基礎來源</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className={labelClass}>名稱</label>
-                <input className={inputClass} placeholder="例如 BBC" value={name} onChange={e => setName(e.target.value)} required />
-              </div>
-              <div>
-                <label className={labelClass}>提供商 (Provider)</label>
-                <select className={inputClass} value={provider} onChange={e => setProvider(e.target.value)}>
-                  <option value="rss">RSS (預設)</option>
-                  <option value="buzzing">Buzzing</option>
-                  <option value="rsshub">RSSHub</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>訂閱連結 (Feed URL)</label>
-                <input
+        <div className="flex flex-col gap-5">
+          {/* URL Feed Autodiscovery Section */}
+          {!editingSource && (
+            <div className="border-b border-white/5 pb-5">
+              <label htmlFor="source-discover" className={labelClass}>URL (網站或 RSS/Atom 訂閱連結)</label>
+              <div className="flex gap-2">
+                <input id="source-discover"
                   className={inputClass}
-                  placeholder="例如 https://example.com/feed.xml"
-                  value={feedUrl}
-                  onChange={e => setFeedUrl(e.target.value)}
-                  disabled={provider === "buzzing"}
-                  required={provider !== "buzzing"}
+                  placeholder="例如 https://example.com 或 https://example.com/feed.xml"
+                  value={inputUrl}
+                  onChange={e => setInputUrl(e.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={handleDiscover}
+                  disabled={isDiscovering || !inputUrl.trim()}
+                  className={$(
+                    "px-4 py-2 rounded-md text-xs font-medium border border-white/10 hover:border-white/25 hover:bg-white/5 whitespace-nowrap transition-all",
+                    (isDiscovering || !inputUrl.trim()) && "op-20 cursor-not-allowed"
+                  )}
+                >
+                  {isDiscovering ? "解析中..." : "解析與發現"}
+                </button>
               </div>
-              {provider === "buzzing" ? (
-                <div>
-                  <label className={labelClass}>Subdomain</label>
-                  <div className="flex items-center gap-2">
-                    <input className={inputClass} placeholder="bbc" value={subdomain} onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required />
-                    <span className="text-[10px] op-20 whitespace-nowrap">.buzzing.cc</span>
+              {discoverError && (
+                <p className="text-[10px] text-red-400/70 mt-1">{discoverError}</p>
+              )}
+
+              {/* Discovered feed options */}
+              {discoveredFeeds.length > 0 && (
+                <div className="mt-3 bg-white/[0.015] border border-white/5 rounded-md p-3">
+                  <p className="text-[10px] op-40 mb-2 font-sans">請選擇訂閱源網址：</p>
+                  <div className="flex flex-col gap-1.5 font-sans">
+                    {discoveredFeeds.map((f: any) => (
+                      <button
+                        key={f.url}
+                        type="button"
+                        onClick={() => {
+                          setFeedUrl(f.url)
+                          setProvider(f.type === "rsshub" ? "rsshub" : "rss")
+                        }}
+                        className={$(
+                          "text-left text-xs px-2.5 py-2 rounded transition-all duration-200 border flex flex-col gap-0.5",
+                          feedUrl === f.url ? "bg-white/5 border-white/20 text-white" : "bg-transparent border-white/5 text-white/50 hover:bg-white/[0.03]"
+                        )}
+                      >
+                        <span className="font-medium text-[11px] flex items-center gap-1.5">
+                          {f.title}
+                          {f.type === "rsshub" && <span className="text-[8px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-1 rounded">RSSHub</span>}
+                        </span>
+                        <span className="text-[9px] font-mono op-45 truncate block w-full">{f.url}</span>
+                        {f.note && (
+                          <span className="text-[9px] text-amber-400/80 leading-normal mt-1 border-t border-white/5 pt-1 mt-1 block">
+                            {f.note}
+                          </span>
+                        )}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <label className={labelClass}>官方網站 (Home URL)</label>
-                  <input className={inputClass} placeholder="例如 https://example.com/" value={homeUrl} onChange={e => setHomeUrl(e.target.value)} />
-                </div>
               )}
             </div>
-          </div>
+          )}
 
-          {/* Section 2: 內容定義 */}
-          <div className="border-t border-white/5 pt-5">
-            <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">內容定義</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className={labelClass}>內容類型</label>
-                <select className={inputClass} value={type} onChange={e => {
-                  const val = e.target.value
-                  setType(val)
-                  // Reset isMainstream if not standard news
-                  if (val !== "") {
-                    setIsMainstream(0)
-                  } else {
-                    setIsMainstream(1) // Default to active news tab for news type
-                  }
-                }}>
-                  <option value="">新聞 (時間流)</option>
-                  <option value="hottest">最熱 (熱榜)</option>
-                  <option value="realtime">實時 (快訊)</option>
-                </select>
-              </div>
-              {type === "" && (
+          <div className="flex flex-col gap-6">
+            {/* Section 1: 基礎來源 */}
+            <div>
+              <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">基礎來源</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className={labelClass}>分類歸屬</label>
-                  <select className={inputClass} value={columnId} onChange={e => setColumnId(e.target.value)}>
-                    <option value="world">國際</option>
-                    <option value="china">國內</option>
-                    <option value="tech">科技</option>
-                    <option value="finance">財經</option>
+                  <label htmlFor="source-name" className={labelClass}>名稱</label>
+                  <input id="source-name" className={inputClass} placeholder="例如 BBC" value={name} onChange={e => setName(e.target.value)} required />
+                </div>
+                <div>
+                  <label htmlFor="source-provider" className={labelClass}>提供商 (Provider)</label>
+                  <select id="source-provider" className={inputClass} value={provider} onChange={e => setProvider(e.target.value)}>
+                    <option value="rss">RSS (預設)</option>
+                    <option value="buzzing">Buzzing</option>
+                    <option value="rsshub">RSSHub</option>
                   </select>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Section 3: 展示位置 / 分發頁面 */}
-          <div className="border-t border-white/5 pt-5">
-            <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">顯示位置 / 分發頁面</h3>
-            <div className="flex gap-3 items-center mt-2 flex-wrap">
-              {/* 全部 (Always active) */}
-              <span className="text-xs text-white/50 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded">
-                <span className="i-ph:check text-green-400" /> 全部
-              </span>
-
-              {/* 新聞 */}
-              {type === "" ? (
-                <label className={$(
-                  "text-xs flex items-center gap-1.5 border px-2.5 py-1 rounded cursor-pointer transition-all",
-                  isMainstream === 1 ? "bg-white/10 border-white/20 text-white" : "bg-white/[0.01] border-white/5 text-white/40 hover:border-white/15"
-                )}>
-                  <input
-                    type="checkbox"
-                    checked={isMainstream === 1}
-                    onChange={e => setIsMainstream(e.target.checked ? 1 : 0)}
-                    className="accent-white/50 cursor-pointer"
+                <div>
+                  <label htmlFor="source-feed" className={labelClass}>訂閱連結 (Feed URL)</label>
+                  <input id="source-feed"
+                    className={inputClass}
+                    placeholder="例如 https://example.com/feed.xml"
+                    value={feedUrl}
+                    onChange={e => setFeedUrl(e.target.value)}
+                    disabled={provider === "buzzing"}
+                    required={provider !== "buzzing"}
                   />
-                  新聞
-                </label>
-              ) : (
-                <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
-                  <span className="i-ph:minus text-white/10" /> 新聞
-                </span>
-              )}
-
-              {/* 熱榜 */}
-              {type === "hottest" ? (
-                <span className="text-xs text-white/80 flex items-center gap-1.5 bg-white/10 border border-white/20 px-2.5 py-1 rounded">
-                  <span className="i-ph:check text-green-400" /> 熱榜
-                </span>
-              ) : (
-                <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
-                  <span className="i-ph:minus text-white/10" /> 熱榜
-                </span>
-              )}
-
-              {/* 快訊 */}
-              {type === "realtime" ? (
-                <span className="text-xs text-white/80 flex items-center gap-1.5 bg-white/10 border border-white/20 px-2.5 py-1 rounded">
-                  <span className="i-ph:check text-green-400" /> 快訊
-                </span>
-              ) : (
-                <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
-                  <span className="i-ph:minus text-white/10" /> 快訊
-                </span>
-              )}
+                </div>
+                {provider === "buzzing" ? (
+                  <div>
+                    <label htmlFor="source-subdomain" className={labelClass}>Subdomain</label>
+                    <div className="flex items-center gap-2">
+                      <input id="source-subdomain" className={inputClass} placeholder="bbc" value={subdomain} onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required />
+                      <span className="text-[10px] op-20 whitespace-nowrap">.buzzing.cc</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label htmlFor="source-home" className={labelClass}>官方網站 (Home URL)</label>
+                    <input id="source-home" className={inputClass} placeholder="例如 https://example.com/" value={homeUrl} onChange={e => setHomeUrl(e.target.value)} />
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="text-[10px] op-25 mt-2">
-              {type === "" 
-                ? "勾選「新聞」後，該來源的內容會分發至首頁的「新聞」主分頁，否則僅會出現在「分類歸屬」和「全部」分頁。" 
-                : `內容類型為「${type === "hottest" ? "熱榜" : "快訊"}」，系統將自動分發到對應頁面，無需手動配置。`}
-            </p>
+
+            {/* Section 2: 內容定義 */}
+            <div className="border-t border-white/5 pt-5">
+              <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">內容定義</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label htmlFor="source-type" className={labelClass}>內容類型</label>
+                  <select id="source-type" className={inputClass} value={type} onChange={e => {
+                    const val = e.target.value
+                    setType(val)
+                    // Reset isMainstream if not standard news
+                    if (val !== "") {
+                      setIsMainstream(0)
+                    } else {
+                      setIsMainstream(1) // Default to active news tab for news type
+                    }
+                  }}>
+                    <option value="">新聞 (時間流)</option>
+                    <option value="hottest">最熱 (熱榜)</option>
+                    <option value="realtime">實時 (快訊)</option>
+                  </select>
+                </div>
+                {type === "" && (
+                  <div>
+                    <label htmlFor="source-column" className={labelClass}>分類歸屬</label>
+                    <select id="source-column" className={inputClass} value={columnId} onChange={e => setColumnId(e.target.value)}>
+                      <option value="world">國際</option>
+                      <option value="china">國內</option>
+                      <option value="tech">科技</option>
+                      <option value="finance">財經</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section 3: 展示位置 / 分發頁面 */}
+            <div className="border-t border-white/5 pt-5">
+              <h3 className="text-xs font-semibold op-50 tracking-wider mb-3">顯示位置 / 分發頁面</h3>
+              <div className="flex gap-3 items-center mt-2 flex-wrap">
+                {/* 全部 (Always active) */}
+                <span className="text-xs text-white/50 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded">
+                  <span className="i-ph:check text-green-400" /> 全部
+                </span>
+
+                {/* 新聞 */}
+                {type === "" ? (
+                  <label className={$(
+                    "text-xs flex items-center gap-1.5 border px-2.5 py-1 rounded cursor-pointer transition-all",
+                    isMainstream === 1 ? "bg-white/10 border-white/20 text-white" : "bg-white/[0.01] border-white/5 text-white/40 hover:border-white/15"
+                  )}>
+                    <input
+                      type="checkbox"
+                      checked={isMainstream === 1}
+                      onChange={e => setIsMainstream(e.target.checked ? 1 : 0)}
+                      className="accent-white/50 cursor-pointer"
+                    />
+                    新聞
+                  </label>
+                ) : (
+                  <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
+                    <span className="i-ph:minus text-white/10" /> 新聞
+                  </span>
+                )}
+
+                {/* 熱榜 */}
+                {type === "hottest" ? (
+                  <span className="text-xs text-white/80 flex items-center gap-1.5 bg-white/10 border border-white/20 px-2.5 py-1 rounded">
+                    <span className="i-ph:check text-green-400" /> 熱榜
+                  </span>
+                ) : (
+                  <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
+                    <span className="i-ph:minus text-white/10" /> 熱榜
+                  </span>
+                )}
+
+                {/* 快訊 */}
+                {type === "realtime" ? (
+                  <span className="text-xs text-white/80 flex items-center gap-1.5 bg-white/10 border border-white/20 px-2.5 py-1 rounded">
+                    <span className="i-ph:check text-green-400" /> 快訊
+                  </span>
+                ) : (
+                  <span className="text-xs text-white/20 flex items-center gap-1.5 bg-white/[0.01] border border-white/5 px-2.5 py-1 rounded cursor-not-allowed">
+                    <span className="i-ph:minus text-white/10" /> 快訊
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] op-25 mt-2">
+                {type === ""
+                  ? "勾選「新聞」後，該來源的內容會分發至首頁的「新聞」主分頁，否則僅會出現在「分類歸屬」和「全部」分頁。"
+                  : `內容類型為「${type === "hottest" ? "熱榜" : "快訊"}」，系統將自動分發到對應頁面，無需手動配置。`}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Collapsible advanced section */}
-      <button
-        type="button"
-        onClick={() => setShowAdvanced(!showAdvanced)}
-        className="mt-5 text-[11px] op-25 hover:op-50 transition-opacity duration-300"
-      >
-        {showAdvanced ? "收起進階設定" : "進階設定"}
-      </button>
-
-      <AnimatePresence>
-        {showAdvanced && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-4 pt-4 border-t border-white/5">
-              {provider === "buzzing" && (
-                <div>
-                  <label className={labelClass}>官方網站 (Home URL)</label>
-                  <input className={inputClass} placeholder="例如 https://example.com/" value={homeUrl} onChange={e => setHomeUrl(e.target.value)} />
-                </div>
-              )}
-              <div>
-                <label className={labelClass}>顏色</label>
-                <select className={inputClass} value={color} onChange={e => setColor(e.target.value)}>
-                  {["blue", "red", "green", "orange", "gray", "teal", "indigo", "emerald", "slate"].map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>排序權重</label>
-                <input type="number" className={inputClass} value={priorityWeight} onChange={e => setPriorityWeight(Number(e.target.value) || 0)} />
-              </div>
-              <div>
-                <label className={labelClass}>標籤 (Tags)</label>
-                <input className={inputClass} value={tags} placeholder="ai, web3" onChange={e => setTags(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelClass}>Badge 標籤</label>
-                <input className={inputClass} value={badgeLabel} placeholder="—" onChange={e => setBadgeLabel(e.target.value)} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {error && (
-        <p className="mt-4 text-[11px] text-red-400/70">
-          {(error as any)?.data?.message || error.message}
-        </p>
-      )}
-
-      <div className="flex justify-end mt-6">
+        {/* Collapsible advanced section */}
         <button
-          type="submit"
-          disabled={isLoading || !name.trim() || (provider === "buzzing" && !subdomain.trim()) || (provider !== "buzzing" && !feedUrl.trim())}
-          className={$(
-            "px-5 py-2 rounded-md text-xs font-medium transition-all duration-300",
-            "border border-white/10 hover:border-white/25 hover:bg-white/5",
-            (isLoading || !name.trim() || (provider === "buzzing" && !subdomain.trim()) || (provider !== "buzzing" && !feedUrl.trim())) && "op-20 cursor-not-allowed",
-          )}
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          aria-expanded={showAdvanced}
+          className="mt-5 min-h-11 text-sm text-neutral-300 hover:text-white"
         >
-          {isLoading ? "處理中..." : editingSource ? "儲存" : "新增"}
+          {showAdvanced ? "收起進階設定" : "進階設定"}
         </button>
-      </div>
+
+        <AnimatePresence>
+          {showAdvanced && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-4 pt-4 border-t border-white/5">
+                {provider === "buzzing" && (
+                  <div>
+                    <label htmlFor="source-home" className={labelClass}>官方網站 (Home URL)</label>
+                    <input id="source-home" className={inputClass} placeholder="例如 https://example.com/" value={homeUrl} onChange={e => setHomeUrl(e.target.value)} />
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="source-color" className={labelClass}>顏色</label>
+                  <select id="source-color" className={inputClass} value={color} onChange={e => setColor(e.target.value)}>
+                    {["blue", "red", "green", "orange", "gray", "teal", "indigo", "emerald", "slate"].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="source-weight" className={labelClass}>排序權重</label>
+                  <input id="source-weight" type="number" className={inputClass} value={priorityWeight} onChange={e => setPriorityWeight(Number(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <label htmlFor="source-tags" className={labelClass}>標籤 (Tags)</label>
+                  <input id="source-tags" className={inputClass} value={tags} placeholder="ai, web3" onChange={e => setTags(e.target.value)} />
+                </div>
+                <div>
+                  <label htmlFor="source-badge" className={labelClass}>Badge 標籤</label>
+                  <input id="source-badge" className={inputClass} value={badgeLabel} placeholder="—" onChange={e => setBadgeLabel(e.target.value)} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-red-300">
+            {(error as any)?.data?.message || error.message}
+          </p>
+        )}
+
+        <div className="flex justify-end mt-6">
+          <button
+            type="submit"
+            disabled={isLoading || !name.trim() || (provider === "buzzing" && !subdomain.trim()) || (provider !== "buzzing" && !feedUrl.trim())}
+            className={$(
+              "px-5 py-2 rounded-md text-xs font-medium transition-all duration-300",
+              "border border-white/10 hover:border-white/25 hover:bg-white/5",
+              (isLoading || !name.trim() || (provider === "buzzing" && !subdomain.trim()) || (provider !== "buzzing" && !feedUrl.trim())) && "op-20 cursor-not-allowed",
+            )}
+          >
+            {isLoading ? "處理中..." : editingSource ? "儲存" : "新增"}
+          </button>
+        </div>
+      </fieldset>
     </form>
   )
 }

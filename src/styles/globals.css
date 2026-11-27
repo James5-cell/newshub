@@ -54,6 +54,15 @@ button:disabled {
   color: white;
 }
 
+header:has(#dropdown-menu) {
+  z-index: 50;
+}
+
+#dropdown-menu {
+  max-height: calc(100vh - 5rem);
+  max-height: calc(100dvh - 5rem - env(safe-area-inset-bottom, 0px));
+}
+
 #dropdown-menu li {
   --at-apply: rounded-md flex items-center px-2.5 py-2 gap-2.5 text-sm text-white/75 cursor-pointer transition-all duration-150;
 }

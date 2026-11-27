@@ -1,22 +1,22 @@
 import { useQuery } from "@tanstack/react-query"
+import type { FetchError } from "ofetch"
 import { safeStorage } from "@shared/storage"
 
-const enableLoginAtom = atom({ enable: false, url: "/api/login" })
-enableLoginAtom.onMount = (set) => {
-  myFetch<{ enable: boolean, url: string }>("/enable-login").then(set).catch(() => {
-    set({ enable: false, url: "/api/login" })
-  })
-}
-
 export function useLogin() {
-  const enableLogin = useAtomValue(enableLoginAtom)
+  const availability = useQuery({
+    queryKey: ["enable-login"],
+    queryFn: () => myFetch<{ enable: boolean }>("/enable-login"),
+    staleTime: Infinity,
+    retry: false,
+  })
+  const enabled = availability.data?.enable === true
   const jwt = safeParseString(safeStorage.getItem("jwt"))
   const session = useQuery({
     queryKey: ["session"],
     queryFn: () => myFetch<{ id: string, name?: string, avatar?: string }>("/me", {
       headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
     }),
-    enabled: enableLogin.enable,
+    enabled,
     retry: false,
     staleTime: 60_000,
   })
@@ -32,9 +32,13 @@ export function useLogin() {
     }
   }, [jwt])
   return {
+    accountId: session.data?.id,
     loggedIn: !!session.data?.id,
     userInfo: { name: session.data?.name, avatar: session.data?.avatar },
-    enableLogin: enableLogin.enable,
+    enableLogin: enabled,
+    checkingLogin: availability.isPending || (enabled && session.isPending),
+    loginCheckFailed: availability.isError || (enabled && session.isError && (session.error as FetchError).statusCode !== 401),
+    retryLoginCheck: availability.isError ? availability.refetch : session.refetch,
     logout,
     login,
   }

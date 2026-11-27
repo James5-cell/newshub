@@ -4,7 +4,8 @@ import { focusSourcesAtom } from "~/atoms"
 export function useFocus() {
   const [focusSources, setFocusSources] = useAtom(focusSourcesAtom)
   const toggleFocus = useCallback((id: SourceID) => {
-    setFocusSources(focusSources.includes(id) ? focusSources.filter(i => i !== id) : [...focusSources, id])
+    const remove = focusSources.includes(id)
+    setFocusSources(current => remove ? current.filter(source => source !== id) : [...new Set([...current, id])])
   }, [setFocusSources, focusSources])
   const isFocused = useCallback((id: SourceID) => focusSources.includes(id), [focusSources])
 
@@ -15,14 +16,9 @@ export function useFocus() {
 }
 
 export function useFocusWith(id: SourceID) {
-  const [focusSources, setFocusSources] = useAtom(focusSourcesAtom)
-  const toggleFocus = useCallback(() => {
-    setFocusSources(focusSources.includes(id) ? focusSources.filter(i => i !== id) : [...focusSources, id])
-  }, [setFocusSources, focusSources, id])
-  const isFocused = useMemo(() => focusSources.includes(id), [id, focusSources])
-
+  const { toggleFocus, isFocused } = useFocus()
   return {
-    toggleFocus,
-    isFocused,
+    toggleFocus: useCallback(() => toggleFocus(id), [id, toggleFocus]),
+    isFocused: isFocused(id),
   }
 }

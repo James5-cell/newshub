@@ -1,7 +1,8 @@
 import { safeStorage } from "@shared/storage"
 import { useQuery } from "@tanstack/react-query"
-import { useAtom } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai"
 import { useEffect } from "react"
+import { focusSourcesAtom } from "~/atoms"
 import { myFetch } from "~/utils"
 import { primitiveMetadataAtom } from "~/atoms/primitiveMetadataAtom"
 
@@ -31,7 +32,7 @@ export interface SourceCategoriesData {
 const LOCAL_STORAGE_CACHE_KEY = "source_categories_cache"
 
 export function useSourceCategories() {
-  const { data, isLoading, isError: isQueryError } = useQuery({
+  const { data, isLoading, isError: isQueryError, dataUpdatedAt, isFetching, refetch } = useQuery({
     queryKey: ["source-categories"],
     queryFn: async () => {
       const res: SourceCategoriesData = await myFetch("/source-categories")
@@ -54,36 +55,38 @@ export function useSourceCategories() {
       } catch { }
       return undefined
     },
+    initialDataUpdatedAt: 0,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
     gcTime: 1000 * 60 * 10,
     retry: 1, // Only retry once to fallback quickly
   })
 
-  // === Focus Migration 擴充部分 ===
-  // 當拿回最新的 "more" (全部有效來源清單) 時，如果跟既有 focus 取交集發現失效品，就自動洗除
-  const [metadata, setMetadata] = useAtom(primitiveMetadataAtom)
-  useEffect(() => {
-    if (data?.categories?.more && metadata.data.focus) {
-      const validMoreSet = new Set(data.categories.more)
-      const validFocus = metadata.data.focus.filter((id: string) => validMoreSet.has(id))
-      // 如果濾完長度變短，代表有過期的來源被偷偷隱藏或刪除了
-      if (validFocus.length !== metadata.data.focus.length) {
-        setMetadata({
-          ...metadata,
-          updatedTime: Date.now(),
-          action: "sync",
-          data: {
-            ...metadata.data,
-            focus: validFocus
-          }
-        })
-      }
-    }
-  }, [data?.categories?.more, metadata.data.focus, setMetadata])
-
   return {
     data,
     isLoading,
     isError: !!isQueryError,
+    refetch,
+    confirmed: dataUpdatedAt > 0 && !isFetching && !isQueryError,
   }
+}
+
+export function useReconcileFocus() {
+  const { data, confirmed } = useSourceCategories()
+  const focus = useAtomValue(focusSourcesAtom)
+  const setMetadata = useSetAtom(primitiveMetadataAtom)
+  useEffect(() => {
+    if (!confirmed || !data?.categories?.more || !focus.length) return
+    const valid = new Set(data.categories.more)
+    if (focus.every(id => valid.has(id))) return
+    setMetadata(prev => {
+      const remaining = prev.data.focus.filter(id => valid.has(id))
+      if (remaining.length === prev.data.focus.length) return prev
+      return {
+        ...prev,
+        updatedTime: Math.max(Date.now(), prev.updatedTime + 1),
+        action: "sync",
+        data: { ...prev.data, focus: remaining },
+      }
+    })
+  }, [data, confirmed, focus, setMetadata])
 }

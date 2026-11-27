@@ -1,3 +1,4 @@
+import { useTitle } from "react-use"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { SELAH_CWS_URLS } from "../../utils/selah-cws"
 
@@ -135,6 +136,7 @@ export const EXTENSION_GROUPS: SelahExtensionGroup[] = [
 export const SELAH_EXTENSIONS = EXTENSION_GROUPS.flatMap((g) => g.items)
 
 function SelahExtensionsPage() {
+  useTitle("Selah 扩展清单 | NewsHub")
   return (
     <div className="space-y-12 py-2">
       {/* Page Header */}

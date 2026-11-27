@@ -44,11 +44,14 @@ export class UserTable {
   }
 
   async setData(key: string, value: string, updatedTime = Date.now()) {
-    const state = await this.db.prepare(
-      `UPDATE user SET data = ?, updated = ? WHERE id = ?`,
-    ).run(value, updatedTime, key)
-    if (!state.success) throw new Error(`set user ${key} data failed`)
-    logger.success(`set ${key} data`)
+    await this.db.prepare(
+      `UPDATE user SET data = ?, updated = ?
+       WHERE id = ? AND (data IS NULL OR data = '' OR updated IS NULL OR updated < ?)`,
+    ).run(value, updatedTime, key, updatedTime)
+    // A duplicate or older upload changes zero rows. Return the winning snapshot.
+    const row = await this.getData(key)
+    if (!row.data || row.updated < updatedTime) throw new Error(`set user ${key} data failed`)
+    return row
   }
 
   async getData(id: string) {

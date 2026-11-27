@@ -6,6 +6,7 @@ import { mascotHiddenAtom } from "~/atoms"
 
 export function Menu() {
   const { loggedIn, login, logout, userInfo, enableLogin } = useLogin()
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const [shown, show] = useState(false)
   const { toggle: toggleSearch } = useSearchBar()
   const location = useLocation()
@@ -13,8 +14,19 @@ export function Menu() {
   const [mascotHidden, setMascotHidden] = useAtom(mascotHiddenAtom)
 
   return (
-    <span className="relative" onKeyDown={event => { if (event.key === "Escape") show(false) }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) show(false) }}>
-      <button type="button" className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/5" aria-label="打开菜单" aria-expanded={shown} aria-controls="dropdown-menu" onClick={() => show(value => !value)}>
+    <span
+      className="relative"
+      onKeyDown={event => {
+        if (event.key === "Escape" && shown) {
+          show(false)
+          triggerRef.current?.focus()
+        }
+      }}
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) show(false)
+      }}
+    >
+      <button ref={triggerRef} type="button" className="flex items-center justify-center w-11 h-11 rounded-lg hover:bg-white/5" aria-label="打开菜单" aria-expanded={shown} aria-controls="dropdown-menu" onClick={() => show(value => !value)}>
         {
           enableLogin && loggedIn && userInfo.avatar
             ? (
@@ -46,7 +58,7 @@ export function Menu() {
           <motion.div
             id="dropdown-menu"
             className={$([
-              "w-56 rounded-lg overflow-hidden",
+              "w-56 rounded-lg overflow-x-hidden overflow-y-auto overscroll-contain",
               "bg-[#1A1A1A]",
               "border border-white/[0.08]",
               "shadow-2xl shadow-black/80",
@@ -116,6 +128,7 @@ export function Menu() {
                     type="button"
                     className="flex items-center gap-2.5 w-full text-left"
                     onClick={() => {
+                      triggerRef.current?.focus()
                       toggleSearch()
                       show(false)
                     }}

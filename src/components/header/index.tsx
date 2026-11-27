@@ -5,15 +5,17 @@ import { goToTopAtom } from "~/atoms"
 
 function GoTop() {
   const { ok, fn: goToTop } = useAtomValue(goToTopAtom)
+  if (!ok) return null
   return (
     <button
       type="button"
-      title="Go To Top"
+      title="返回顶部"
       aria-label="返回顶部"
-      tabIndex={ok ? 0 : -1}
-      className={$("i-ph:arrow-fat-up-duotone", ok ? "op-50 btn" : "op-0")}
+      className="w-11 h-11 grid place-items-center rounded-lg text-neutral-400 hover:bg-white/5 hover:text-white"
       onClick={goToTop}
-    />
+    >
+      <span className="i-ph:arrow-fat-up-duotone" aria-hidden="true" />
+    </button>
   )
 }
 
@@ -22,11 +24,14 @@ function Search() {
   return (
     <button
       type="button"
-      title="Search (⌘K)"
-      aria-label="搜索（⌘K）"
-      className={$("i-ph:magnifying-glass-duotone btn")}
+      id="open-news-search"
+      title="搜索（Ctrl+K / ⌘K）"
+      aria-label="搜索新闻和来源" aria-keyshortcuts="Control+K Meta+K"
+      className="w-11 h-11 grid place-items-center rounded-lg text-neutral-300 hover:bg-white/5 hover:text-white"
       onClick={() => toggle()}
-    />
+    >
+      <span className="i-ph:magnifying-glass-duotone" aria-hidden="true" />
+    </button>
   )
 }
 

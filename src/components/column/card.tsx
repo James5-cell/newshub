@@ -12,16 +12,14 @@ import { useSourceCategories } from "~/hooks/useSourceCategories"
 
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
   id: SourceID
+  order?: { first: boolean, last: boolean, move: (direction: number) => void }
   isDragging?: boolean
   setHandleRef?: (ref: HTMLElement | null) => void
 }
 
-interface NewsCardProps {
-  id: SourceID
-  setHandleRef?: (ref: HTMLElement | null) => void
-}
+type NewsCardProps = Pick<ItemsProps, "id" | "setHandleRef" | "order">
 
-export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging, setHandleRef, style, ...props }, dndRef) => {
+export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, order, isDragging, setHandleRef, style, ...props }, dndRef) => {
   const ref = useRef<HTMLDivElement>(null)
 
   const inView = useInView(ref, {
@@ -46,12 +44,13 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, isDragging
       }}
       {...props}
     >
-      {inView && <NewsCard id={id} setHandleRef={setHandleRef} />}
+      {inView && <NewsCard id={id} order={order} setHandleRef={setHandleRef} />}
     </div>
   )
 })
 
-function NewsCard({ id, setHandleRef }: NewsCardProps) {
+function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
+  const [ordering, setOrdering] = useState(false)
   const { refresh, isRefreshing, limitReached, resetAt } = useRefetch()
   const toaster = useToast()
   const refreshTooltip = limitReached
@@ -170,10 +169,10 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
                 {name}
               </span>
               {title && title.trim().toLowerCase() !== name.trim().toLowerCase() && (
-                <span className="text-[10px] text-gray-500 truncate flex-shrink-0">{title}</span>
+                <span className="text-xs text-neutral-400 truncate">{title}</span>
               )}
             </div>
-            <span className="text-[10px] text-gray-500 flex items-center gap-1">
+            <span className="text-xs text-neutral-400 flex items-center gap-1">
               <UpdatedTime isError={isError} isStale={data?.status === "stale"} updatedTime={data?.updatedTime} />
             </span>
           </div>
@@ -207,13 +206,40 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
           >
             <span aria-hidden="true" className={$(isFocused ? "i-ph:star-fill text-amber-400" : "i-ph:star-duotone text-neutral-400")} />
           </button>
-          {setHandleRef && (
-            <div
-              ref={setHandleRef}
-              title="拖动调整顺序"
-              aria-hidden="true"
-              className="btn i-ph:dots-six-vertical-duotone op-20 hover:op-50 cursor-grab transition-opacity duration-200"
-            />
+          {setHandleRef && order && (
+            <div className="relative" onBlur={event => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setOrdering(false)
+            }} onKeyDown={event => {
+              if (event.key === "Escape" && ordering) {
+                setOrdering(false)
+                document.getElementById(`order-${id}`)?.focus()
+              }
+            }}>
+              <button
+                id={`order-${id}`}
+                ref={setHandleRef}
+                type="button"
+                aria-label={`调整${name}顺序`}
+                aria-expanded={ordering}
+                title="调整顺序，也可拖动"
+                onClick={() => setOrdering(open => !open)}
+                className="grid w-11 h-11 place-items-center rounded text-neutral-400 hover:bg-white/5 cursor-grab"
+              >
+                <span className="i-ph:dots-six-vertical-duotone" aria-hidden="true" />
+              </button>
+              {ordering && (
+                <div className="absolute right-0 z-2 min-w-28 rounded-lg bg-neutral-800 border border-white/15 p-1">
+                  {([-1, 1] as const).map(step => (
+                    <button key={step} type="button" disabled={step === -1 ? order.first : order.last}
+                      className="block w-full min-h-11 rounded px-3 text-left hover:bg-white/5 disabled:opacity-35"
+                      onClick={() => { setOrdering(false); order.move(step) }}
+                    >
+                      {step === -1 ? "往前移" : "往后移"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -246,7 +272,7 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
 function UpdatedTime({ isError, isStale, updatedTime }: { updatedTime?: number | string, isError: boolean, isStale: boolean }) {
   const relativeTime = useRelativeTime(updatedTime ?? "")
   if (relativeTime) return <span title={isStale || isError ? "暂未获取到新内容，显示上次成功更新的数据" : "上次成功抓取时间"}>{`${relativeTime}检查${isStale || isError ? " · 暂用旧数据" : ""}`}</span>
-  if (isError) return <span className="text-red-400/60">获取失败</span>
+  if (isError) return <span className="text-red-300">获取失败</span>
   return "加载中..."
 }
 
@@ -285,6 +311,7 @@ function ExtraInfo({ item }: { item: NewsItem }) {
     return (
       <img
         src={url}
+        alt=""
         style={{
           transform: `scale(${scale ?? 1})`,
         }}
@@ -322,7 +349,7 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
             "visited:(text-neutral-500)",
           )}
         >
-          <span className="bg-white/[0.06] min-w-5 h-5 flex justify-center items-center rounded text-[10px] text-gray-500 font-mono self-start mt-0.5">
+          <span className="bg-white/[0.06] min-w-5 h-5 flex justify-center items-center rounded text-xs text-neutral-400 font-mono self-start mt-0.5">
             {i + 1}
           </span>
           {!!item.extra?.diff && <DiffNumber diff={item.extra.diff} />}
@@ -330,7 +357,7 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
             <span className="text-sm text-white/85 leading-snug">
               {item.title}
             </span>
-            <span className="text-[10px] text-gray-500 ml-1.5 align-middle whitespace-nowrap">
+            <span className="text-xs text-neutral-400 ml-1.5 align-middle whitespace-nowrap">
               <ExtraInfo item={item} />
             </span>
           </span>
@@ -353,10 +380,10 @@ function NewsListTimeLine({ items }: { items: NewsItem[] }) {
           {/* Meta line: timestamp + extra */}
           <div className="flex items-center gap-1.5 px-2 pt-1.5">
             <span className="w-1 h-1 rounded-full bg-gray-600 flex-shrink-0" />
-            <span className="text-[10px] text-gray-500">
+            <span className="text-xs text-neutral-400">
               {(item.pubDate || item?.extra?.date) && <NewsUpdatedTime date={(item.pubDate || item?.extra?.date)!} />}
             </span>
-            <span className="text-[10px] text-gray-600">
+            <span className="text-xs text-neutral-400">
               <ExtraInfo item={item} />
             </span>
           </div>

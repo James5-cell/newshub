@@ -19,7 +19,10 @@
 }
 
 [cmdk-list] {
-    --at-apply: px-3 flex flex-col gap-2 items-stretch max-h-[400px] h-[calc(100vh-100px)];
+    --at-apply: px-3;
+    min-width: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 [cmdk-group-heading] {
@@ -34,7 +37,7 @@
     z-index: 999;
     left: 50%;
     top: 50%;
-    /* transform: translateX(-50%) translateY(-50%); */
+    max-height: calc(100dvh - 1.5rem);
     transform: translate(-50%, -50%);
 }
 
@@ -42,6 +45,40 @@
     transition: opacity;
     transform-origin: center center;
     animation: dialogIn 0.3s forwards
+}
+
+[cmdk-dialog] [cmdk-root] {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2.5rem);
+}
+
+.search-panes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    padding-top: 0.5rem;
+    height: 25rem;
+}
+
+.search-preview {
+    display: none;
+}
+
+@media (min-width: 768px) and (min-height: 660px) {
+    .search-panes {
+        grid-template-columns: minmax(0, 1fr) 55%;
+        height: auto;
+    }
+
+    .search-preview {
+        display: block;
+        padding-inline: 0.75rem;
+    }
+
+    [cmdk-list] {
+        max-height: 500px;
+    }
 }
 
 [cmdk-dialog][data-state=closed]{
@@ -75,4 +112,5 @@
 
 [cmdk-overlay] {
     --at-apply: fixed inset-0 bg-black bg-op-50;
+    z-index: 998;
 }

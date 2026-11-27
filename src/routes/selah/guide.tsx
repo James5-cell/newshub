@@ -1,3 +1,4 @@
+import { useTitle } from "react-use"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { SELAH_CWS_URLS } from "../../utils/selah-cws"
 
@@ -8,6 +9,7 @@ export const Route = createFileRoute("/selah/guide")({
 const CONTEXT_SCENARIOS = [
   {
     id: "reader",
+    label: "专注读正文",
     problem: "页面广告、侧栏或弹窗过多，无法集中注意力阅读",
     toolName: "Selah Reader",
     toolType: "Chrome Extension",
@@ -22,6 +24,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "translate",
+    label: "翻译文章",
     problem: "遇到外语文章、生词或领域专业术语，频繁打断阅读",
     toolName: "Selah Translate",
     toolType: "Chrome Extension",
@@ -36,6 +39,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "pace",
+    label: "安排阅读时间",
     problem: "面对数千字长文章容易走神，或陷入无止境划屏",
     toolName: "Selah Pace",
     toolType: "Chrome Extension",
@@ -50,6 +54,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "bridge",
+    label: "理解外语视频",
     problem: "观看外语视频或专业教程时跨语言理解吃力，难以提取结构化要点与精准片段",
     toolName: "Selah Bridge",
     toolType: "Chrome Extension",
@@ -64,6 +69,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "hold",
+    label: "暂存网页",
     problem: "发现有价值的文章或资料，读到一半或暂时没时间深度阅读",
     toolName: "Selah Hold",
     toolType: "Chrome Extension",
@@ -78,6 +84,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "listen",
+    label: "听读选中文字",
     problem: "阅读时遇到重点段落或句子，希望直接用语音听读发音",
     toolName: "Selah Listen",
     toolType: "Chrome Extension",
@@ -92,6 +99,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "pagefirst",
+    label: "提炼文章要点",
     problem: "想要快速提取网页核心要点，或需要针对当前页面内容进行深度问答与总结",
     toolName: "Selah PageFirst",
     toolType: "Chrome Extension",
@@ -106,6 +114,7 @@ const CONTEXT_SCENARIOS = [
   },
   {
     id: "newshub",
+    label: "发现新闻",
     problem: "不知道在线世界现在发生了什么，缺乏优质内容源头",
     toolName: "NewsHub",
     toolType: "Web Application",
@@ -122,13 +131,13 @@ const CONTEXT_SCENARIOS = [
 ]
 
 function SelahGuidePage() {
+  useTitle("Selah 使用指南 | NewsHub")
   const [checklist, setChecklist] = useState<Record<string, boolean>>({
     step1: false,
     step2: false,
     step3: false,
     step4: false,
   })
-  const [showChecklist, setShowChecklist] = useState(true)
 
   const toggleChecklistStep = (key: string) => {
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -146,57 +155,49 @@ function SelahGuidePage() {
         <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed">
           从遇到的问题出发，找到合适的工具和使用步骤。
         </p>
+        <nav aria-label="按阅读问题查找工具" className="flex flex-wrap gap-2 pt-2">
+          {CONTEXT_SCENARIOS.map(sc => (
+            <Link key={sc.id} to="/selah/guide" hash={sc.id} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/12 px-3 text-sm text-neutral-200 hover:border-red-400/50 hover:bg-white/5">
+              <span className={`${sc.icon} text-red-300`} aria-hidden="true" />
+              {sc.label}
+            </Link>
+          ))}
+        </nav>
       </section>
 
-      {/* First-time Lightweight Experience Checklist */}
-      {showChecklist && (
-        <section className="p-6 rounded-xl bg-white/[0.02] border border-white/10 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="i-ph:flag-banner-duotone text-red-400 text-lg" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                首次体验示范流程 ({completedCount} / 4)
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowChecklist(false)}
-              className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-            >
-              隐藏检查清单
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { id: "step1", text: "1. 打开一篇文章", sub: "在 NewsHub 或任意网页" },
-              { id: "step2", text: "2. 尝试启动 Reader", sub: "一键清理干扰浮窗" },
-              { id: "step3", text: "3. 选中任意一句文本", sub: "触发选词辅助交互" },
-              { id: "step4", text: "4. 试用 Translate/Listen", sub: "体验翻译或听读" },
-            ].map((st) => {
-              const checked = checklist[st.id]
-              return (
-                <label
-                  key={st.id}
-                  className={$(
-                    "p-3 rounded-lg border transition-all cursor-pointer flex flex-col justify-between min-h-[72px]",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
-                    checked
-                      ? "bg-white/10 border-red-500/40 text-white"
-                      : "bg-white/[0.02] border-white/10 text-neutral-300 hover:border-white/20"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold">{st.text}</span>
-                    <input type="checkbox" checked={checked} onChange={() => toggleChecklistStep(st.id)} className="w-4 h-4 accent-red-500 flex-shrink-0" />
-                  </div>
-                  <span className="text-[10px] text-neutral-400 mt-1">{st.sub}</span>
-                </label>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      <details className="rounded-xl border border-white/10 px-5 py-2">
+        <summary className="cursor-pointer py-3 text-sm font-medium text-neutral-300">
+          首次体验示范流程（{completedCount} / 4）
+        </summary>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { id: "step1", text: "1. 打开一篇文章", sub: "在 NewsHub 或任意网页" },
+            { id: "step2", text: "2. 尝试启动 Reader", sub: "一键清理干扰浮窗" },
+            { id: "step3", text: "3. 选中任意一句文本", sub: "触发选词辅助交互" },
+            { id: "step4", text: "4. 试用 Translate/Listen", sub: "体验翻译或听读" },
+          ].map((st) => {
+            const checked = checklist[st.id]
+            return (
+              <label
+                key={st.id}
+                className={$(
+                  "p-3 rounded-lg border transition-all cursor-pointer flex flex-col justify-between min-h-[72px]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
+                  checked
+                    ? "bg-white/10 border-red-500/40 text-white"
+                    : "bg-white/[0.02] border-white/10 text-neutral-300 hover:border-white/20"
+                )}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold">{st.text}</span>
+                  <input type="checkbox" checked={checked} onChange={() => toggleChecklistStep(st.id)} className="w-4 h-4 accent-red-500 flex-shrink-0" />
+                </div>
+                <span className="text-[10px] text-neutral-400 mt-1">{st.sub}</span>
+              </label>
+            )
+          })}
+        </div>
+      </details>
 
       {/* Contextual Scenarios List */}
       <section className="space-y-6">

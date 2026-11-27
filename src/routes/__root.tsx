@@ -5,6 +5,7 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import type { QueryClient } from "@tanstack/react-query"
 import { isMobile } from "react-device-detect"
+import { useReconcileFocus } from "~/hooks/useSourceCategories"
 import { Header } from "~/components/header"
 import { GlobalOverlayScrollbar } from "~/components/common/overlay-scrollbar"
 import { Footer } from "~/components/footer"
@@ -32,6 +33,7 @@ function RootComponent() {
   const mascotHidden = useAtomValue(mascotHiddenAtom)
   useOnReload()
   useSync()
+  useReconcileFocus()
   usePWA()
   return (
     <>

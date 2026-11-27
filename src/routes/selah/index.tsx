@@ -1,3 +1,4 @@
+import { useTitle } from "react-use"
 import { Link, createFileRoute } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/selah/")({
@@ -5,6 +6,7 @@ export const Route = createFileRoute("/selah/")({
 })
 
 function SelahHubIndex() {
+  useTitle("Selah 阅读工具 | NewsHub")
   return (
     <div className="space-y-8 py-4">
       {/* Hero Section */}
