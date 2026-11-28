@@ -1,7 +1,7 @@
 import { useTitle } from "react-use"
 import { safeStorage } from "@shared/storage"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Link, createFileRoute } from "@tanstack/react-router"
+import { Link, createLazyFileRoute, useBlocker } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AnimatePresence, motion } from "framer-motion"
 import { sources } from "@shared/sources"
@@ -9,7 +9,7 @@ import { typeSafeObjectEntries } from "@shared/type.util"
 import type { CustomSourceInfo } from "~/hooks/useCustomSources"
 import { safeParseString } from "~/utils"
 
-export const Route = createFileRoute("/admin")({
+export const Route = createLazyFileRoute("/admin")({
   component: AdminPage,
 })
 
@@ -33,6 +33,7 @@ interface AdminSource {
   badge_label?: string
 }
 
+const EMPTY_OVERRIDE = {}
 const STATIC_COLLAPSED_COUNT = 8
 const PREVIEW_COLLAPSED_COUNT = 5
 
@@ -237,12 +238,12 @@ function AdminPage() {
             <button
               type="button"
               onClick={() => openForm(null)}
-              className="text-xs px-3 py-1.5 rounded-md border border-white/8 op-60 hover:op-100 hover:border-white/20 transition-all duration-300"
+              className="text-sm min-h-11 px-3 py-1.5 rounded-md border border-white/15 op-85 hover:op-100 hover:border-white/20 transition-all duration-300"
             >
               新增來源
             </button>
           )}
-          <Link to="/" className="text-xs op-30 hover:op-60 transition-opacity duration-300">
+          <Link to="/" className="inline-flex items-center min-h-11 px-2 text-sm text-neutral-300 hover:text-white">
             返回首頁
           </Link>
         </div>
@@ -478,9 +479,9 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
     <section className="mb-14">
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-sm font-medium op-60 tracking-wide">靜態來源</h2>
-        <span className="text-[10px] op-25">{activeStaticSources.length} 項啟用</span>
+        <span className="text-xs text-neutral-400">{activeStaticSources.length} 項啟用</span>
       </div>
-      <p className="text-[11px] op-25 mb-4">權重越大排越前。訪客可在首頁拖曳自訂順序（僅本機）。</p>
+      <p className="text-xs text-neutral-400 mb-4">權重越大排越前。讀者可在首頁調整來源順序，登入後可跨裝置同步。</p>
 
       {/* Bulk Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 bg-white/[0.015] border border-white/5 rounded-xl p-3.5">
@@ -497,7 +498,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
               <button
                 type="button"
                 onClick={() => handleSelectAll(activeStaticSources.map(s => s.id))}
-                className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/70"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/70"
               >
                 全選
               </button>
@@ -508,7 +509,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                     bulkMutation.mutate({ ids: activeStaticSources.map(s => s.id), is_hidden: 1 })
                   }
                 }}
-                className="text-[10px] px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 transition-all"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 transition-all"
               >
                 全部關閉
               </button>
@@ -517,7 +518,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                 onClick={() => {
                   bulkMutation.mutate({ ids: activeStaticSources.map(s => s.id), is_hidden: 0 })
                 }}
-                className="text-[10px] px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 transition-all"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 transition-all"
               >
                 全部開啟
               </button>
@@ -527,7 +528,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
               <button
                 type="button"
                 onClick={handleClearSelect}
-                className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/70"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/70"
               >
                 取消全選
               </button>
@@ -536,7 +537,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                 onClick={() => {
                   bulkMutation.mutate({ ids: Array.from(selectedIds), is_hidden: 0 })
                 }}
-                className="text-[10px] px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 transition-all"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 transition-all"
               >
                 開啟選中
               </button>
@@ -545,7 +546,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                 onClick={() => {
                   bulkMutation.mutate({ ids: Array.from(selectedIds), is_hidden: 1 })
                 }}
-                className="text-[10px] px-2 py-1 rounded bg-amber-500/15 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 transition-all"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-amber-500/15 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 transition-all"
               >
                 關閉選中
               </button>
@@ -556,7 +557,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                     bulkMutation.mutate({ ids: Array.from(selectedIds), is_deleted: 1 })
                   }
                 }}
-                className="text-[10px] px-2 py-1 rounded bg-red-500/15 hover:bg-red-500/20 border border-red-500/25 text-red-300 transition-all"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-red-500/15 hover:bg-red-500/20 border border-red-500/25 text-red-300 transition-all"
               >
                 移除選中
               </button>
@@ -569,7 +570,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                     bulkMutation.mutate({ ids: unselected, is_deleted: 1 })
                   }
                 }}
-                className="text-[10px] px-2 py-1 rounded bg-blue-500/15 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 transition-all"
+                className="text-xs min-h-11 px-2 py-1 rounded bg-blue-500/15 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 transition-all"
               >
                 只保留選中
               </button>
@@ -623,7 +624,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
               <button
                 type="button"
                 onClick={() => setExpanded(true)}
-                className="w-full py-3 text-center text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+                className="w-full py-3 text-center min-h-11 text-sm text-neutral-300 hover:text-white transition-opacity duration-300"
               >
                 展開其餘 {hiddenCount} 項
               </button>
@@ -633,7 +634,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
             <button
               type="button"
               onClick={() => setExpanded(false)}
-              className="w-full py-3 text-center text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+              className="w-full py-3 text-center min-h-11 text-sm text-neutral-300 hover:text-white transition-opacity duration-300"
             >
               收合
             </button>
@@ -674,7 +675,7 @@ function StaticSourceManager({ isAdmin }: { isAdmin: boolean }) {
                       <button
                         type="button"
                         onClick={() => deleteStaticMutation.mutate({ id: source.id, is_deleted: 0 })}
-                        className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 border border-white/5 hover:border-white/20 transition-all whitespace-nowrap"
+                        className="text-xs min-h-11 px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 border border-white/5 hover:border-white/20 transition-all whitespace-nowrap"
                       >
                         還原
                       </button>
@@ -702,7 +703,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected,
   onSelect: () => void
   onDelete: () => void
 }) {
-  const override = source.override || {}
+  const override = source.override || EMPTY_OVERRIDE
 
   const [isMainstream, setIsMainstream] = useState(String(override.is_mainstream_media ?? -1))
   const [weight, setWeight] = useState(String(override.priority_weight ?? 0))
@@ -827,7 +828,7 @@ function StaticSourceRow({ source, onToggle, onUpdateTraits, isSaving, selected,
             )}
             {/* Save status */}
             {saveStatus === "saving" && <span className="text-[9px] op-40 animate-pulse">...</span>}
-            {saveStatus === "saved" && <span className="text-[9px] op-30 text-green-400">已儲存</span>}
+            {saveStatus === "saved" && <span className="text-xs text-green-300">已儲存</span>}
             {saveStatus === "error" && <span className="text-[9px] text-red-400/60" title={errorMsg}>error</span>}
           </div>
         </div>
@@ -974,6 +975,13 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
   const fields = JSON.stringify([name, provider, feedUrl, subdomain, homeUrl, type, columnId, color,
     isMainstream, priorityWeight, tags, badgeLabel, inputUrl])
   const initialFields = useRef(fields)
+  const dirty = fields !== initialFields.current
+  useBlocker({
+    disabled: !dirty,
+    enableBeforeUnload: dirty,
+    shouldBlockFn: ({ current, next }) =>
+      current.pathname !== next.pathname && !window.confirm("尚有未儲存的變更。要捨棄草稿並離開嗎？"),
+  })
 
   const handleDiscover = async () => {
     if (!inputUrl.trim()) return
@@ -1037,12 +1045,12 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
 
   }
 
-  const inputClass = "w-full px-3 py-2 rounded-md bg-white/[0.03] border border-white/8 focus-visible:outline-red-400 focus:border-red-400/60 transition-all duration-300 text-sm placeholder:op-25"
+  const inputClass = "w-full px-3 py-2 rounded-md bg-white/[0.03] border border-white/8 focus-visible:outline-red-400 focus:border-red-400/60 transition-all duration-300 text-base md:text-sm placeholder:text-neutral-400"
   const labelClass = "text-xs text-neutral-300 mb-1.5 block"
 
   return (
     <form
-      data-dirty={fields !== initialFields.current}
+      data-dirty={dirty}
       aria-busy={isLoading}
       onSubmit={handleSubmit}
       className="p-6 rounded-xl border border-white/8 bg-white/[0.02]"
@@ -1055,7 +1063,7 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
           <button
             type="button"
             onClick={onCancelEdit}
-            className="text-[11px] op-30 hover:op-60 transition-opacity duration-300"
+            className="min-h-11 text-sm text-neutral-300 hover:text-white transition-opacity duration-300"
           >
             取消
           </button>
@@ -1256,7 +1264,7 @@ function AddSourceForm({ onSubmit, onCancelEdit, editingSource, isLoading, error
                   </span>
                 )}
               </div>
-              <p className="text-[10px] op-25 mt-2">
+              <p className="text-xs text-neutral-400 mt-2">
                 {type === ""
                   ? "勾選「新聞」後，該來源的內容會分發至首頁的「新聞」主分頁，否則僅會出現在「分類歸屬」和「全部」分頁。"
                   : `內容類型為「${type === "hottest" ? "熱榜" : "快訊"}」，系統將自動分發到對應頁面，無需手動配置。`}
@@ -1393,7 +1401,7 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium op-85 truncate">{source.name}</span>
-          <span className="text-[10px] op-25 font-mono">
+          <span className="text-xs text-neutral-400 font-mono">
             {source.provider === "buzzing" ? `${source.subdomain}.buzzing.cc` : (source.provider || "rss")}
           </span>
           {/* Exception-only badges */}
@@ -1408,7 +1416,7 @@ function SourceRow({ source, onToggle, onDelete, onEdit, isUpdating }: {
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] op-25 font-mono truncate block max-w-[280px] md:max-w-xs">{source.feed_url || source.id}</span>
+          <span className="text-xs text-neutral-400 font-mono truncate block max-w-[280px] md:max-w-xs">{source.feed_url || source.id}</span>
           <SourceTagsBadges tags={source.tags} name={source.name} subdomain={source.subdomain} />
         </div>
       </div>
@@ -1487,7 +1495,7 @@ function CategoryPreview() {
     return (
       <section className="mb-14">
         <h2 className="text-sm font-medium op-60 tracking-wide mb-6">分類預覽</h2>
-        <p className="text-[11px] op-30">載入失敗</p>
+        <p className="text-sm text-neutral-400">載入失敗</p>
       </section>
     )
   }
@@ -1499,7 +1507,7 @@ function CategoryPreview() {
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-sm font-medium op-60 tracking-wide">分類預覽</h2>
       </div>
-      <p className="text-[11px] op-25 mb-6">反映資料庫排序推導後的最終分頁歸屬</p>
+      <p className="text-xs text-neutral-400 mb-6">反映資料庫排序推導後的最終分頁歸屬</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-8">
         <PreviewBucket title="新聞" ids={categories.news || []} metadata={metadata} />

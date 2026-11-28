@@ -15,7 +15,7 @@ function SelahHubIndex() {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
             让阅读更从容
           </h1>
-          <p className="text-sm md:text-base text-neutral-400 max-w-xl leading-relaxed">
+          <p className="text-base text-neutral-400 max-w-xl leading-relaxed">
             暂存网页、专注阅读、翻译或听读。选择你需要的浏览器工具，按自己的方式阅读。
           </p>
         </div>
@@ -33,7 +33,7 @@ function SelahHubIndex() {
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight group-hover:text-red-300 transition-colors">
               内容与注意力
             </h2>
-            <p className="text-sm text-neutral-400 leading-relaxed">暂存网页、安排阅读时间，或整理视频内容。</p>
+            <p className="text-base md:text-sm text-neutral-400 leading-relaxed">暂存网页、安排阅读时间，或整理视频内容。</p>
             <p className="text-xs sm:text-sm text-neutral-400">
               Selah Hold · Selah Pace · Selah Bridge
             </p>
@@ -55,7 +55,7 @@ function SelahHubIndex() {
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight group-hover:text-red-300 transition-colors">
               阅读中的即时工具
             </h2>
-            <p className="text-sm text-neutral-400 leading-relaxed">清理页面、翻译文字、听读或提问。</p>
+            <p className="text-base md:text-sm text-neutral-400 leading-relaxed">清理页面、翻译文字、听读或提问。</p>
             <p className="text-xs sm:text-sm text-neutral-400">
               Selah Reader · Selah Translate · Selah Listen · Selah PageFirst
             </p>
@@ -67,7 +67,7 @@ function SelahHubIndex() {
           </div>
         </Link>
       </section>
-      <p className="text-sm text-neutral-400">不确定从哪里开始？<Link to="/selah/guide" className="text-red-300 hover:text-red-200 underline underline-offset-4">按遇到的问题查找工具</Link></p>
+      <p className="text-base md:text-sm text-neutral-400 leading-relaxed">不确定从哪里开始？<Link to="/selah/guide" className="text-red-300 hover:text-red-200 underline underline-offset-4">按遇到的问题查找工具</Link></p>
     </div>
   )
 }

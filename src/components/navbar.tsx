@@ -3,10 +3,11 @@ import { Link } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { refreshMessage, useRefetch } from "~/hooks/useRefetch"
 import { getMountedSources } from "~/utils/refresh"
-import { currentColumnIDAtom } from "~/atoms"
+import { currentColumnIDAtom, focusSourcesAtom } from "~/atoms"
 
 export function NavBar() {
   const currentId = useAtomValue(currentColumnIDAtom)
+  const emptyFocus = !useAtomValue(focusSourcesAtom).length && currentId === "focus"
   const toaster = useToast()
   const queryClient = useQueryClient()
   const { refresh, isRefreshing, limitReached, resetAt } = useRefetch()
@@ -67,13 +68,13 @@ export function NavBar() {
       <button
         type="button"
         onClick={handleGlobalRefresh}
-        disabled={limitReached || isRefreshing}
+        disabled={emptyFocus || limitReached || isRefreshing}
         title={refreshTooltip}
         aria-label="刷新当前板块"
         aria-busy={isRefreshing}
         className={$(
           "h-11 min-w-11 px-3 rounded-xl transition-colors duration-200 flex items-center gap-1.5 text-xs font-medium border",
-          limitReached
+          (emptyFocus || limitReached)
             ? "bg-white/[0.02] border-white/[0.04] text-white/20 cursor-not-allowed"
             : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/15 active:scale-95 cursor-pointer shadow-sm",
         )}

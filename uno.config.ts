@@ -26,7 +26,8 @@ export default defineConfig({
       "font-brand",
       {
         "font-family": `"Baloo 2", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace; `,
+    "Liberation Mono", "Courier New", monospace`,
+        "font-size-adjust": "from-font",
       },
     ],
   ],

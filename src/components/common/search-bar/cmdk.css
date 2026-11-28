@@ -114,3 +114,28 @@
     --at-apply: fixed inset-0 bg-black bg-op-50;
     z-index: 998;
 }
+
+[cmdk-item].news-result {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.5rem;
+}
+
+.result-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #ededed;
+}
+
+.result-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: #aaa;
+    font-size: 0.8125rem;
+}

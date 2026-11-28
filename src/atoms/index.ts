@@ -39,3 +39,20 @@ export const goToTopAtom = atom({
   el: undefined as HTMLElement | undefined,
   fn: undefined as (() => void) | undefined,
 })
+
+const narrowViewportQuery = "(max-width: 767px)"
+
+export const narrowViewportAtom = atom(
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(narrowViewportQuery).matches
+    : false,
+)
+
+narrowViewportAtom.onMount = (set) => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+  const mq = window.matchMedia(narrowViewportQuery)
+  const update = () => set(mq.matches)
+  update()
+  mq.addEventListener("change", update)
+  return () => mq.removeEventListener("change", update)
+}

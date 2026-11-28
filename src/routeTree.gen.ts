@@ -8,9 +8,10 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SelahRouteImport } from './routes/selah'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SelahIndexRouteImport } from './routes/selah/index'
@@ -19,14 +20,16 @@ import { Route as SelahGuideRouteImport } from './routes/selah/guide'
 import { Route as SelahExtensionsRouteImport } from './routes/selah/extensions'
 import { Route as CColumnRouteImport } from './routes/c.$column'
 
+const AdminLazyRouteImport = createFileRoute('/admin')()
+
+const AdminLazyRoute = AdminLazyRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/admin.lazy').then((d) => d.Route))
 const SelahRoute = SelahRouteImport.update({
   id: '/selah',
   path: '/selah',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -68,8 +71,8 @@ const CColumnRoute = CColumnRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/admin': typeof AdminRoute
   '/selah': typeof SelahRouteWithChildren
+  '/admin': typeof AdminLazyRoute
   '/c/$column': typeof CColumnRoute
   '/selah/extensions': typeof SelahExtensionsRoute
   '/selah/guide': typeof SelahGuideRoute
@@ -79,7 +82,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminLazyRoute
   '/c/$column': typeof CColumnRoute
   '/selah/extensions': typeof SelahExtensionsRoute
   '/selah/guide': typeof SelahGuideRoute
@@ -90,8 +93,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/admin': typeof AdminRoute
   '/selah': typeof SelahRouteWithChildren
+  '/admin': typeof AdminLazyRoute
   '/c/$column': typeof CColumnRoute
   '/selah/extensions': typeof SelahExtensionsRoute
   '/selah/guide': typeof SelahGuideRoute
@@ -103,8 +106,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
-    | '/admin'
     | '/selah'
+    | '/admin'
     | '/c/$column'
     | '/selah/extensions'
     | '/selah/guide'
@@ -124,8 +127,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
-    | '/admin'
     | '/selah'
+    | '/admin'
     | '/c/$column'
     | '/selah/extensions'
     | '/selah/guide'
@@ -136,25 +139,25 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  AdminRoute: typeof AdminRoute
   SelahRoute: typeof SelahRouteWithChildren
+  AdminLazyRoute: typeof AdminLazyRoute
   CColumnRoute: typeof CColumnRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/selah': {
       id: '/selah'
       path: '/selah'
       fullPath: '/selah'
       preLoaderRoute: typeof SelahRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -228,8 +231,8 @@ const SelahRouteWithChildren = SelahRoute._addFileChildren(SelahRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  AdminRoute: AdminRoute,
   SelahRoute: SelahRouteWithChildren,
+  AdminLazyRoute: AdminLazyRoute,
   CColumnRoute: CColumnRoute,
 }
 export const routeTree = rootRouteImport

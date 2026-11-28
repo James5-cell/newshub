@@ -5,6 +5,7 @@ html,
 body,
 #app {
   height: 100vh;
+  height: 100dvh;
   margin: 0;
   padding: 0;
 }
@@ -12,6 +13,7 @@ body,
 @font-face {
   font-family: 'Baloo 2';
   src: url("/Baloo2-Bold.subset.ttf");
+  font-display: swap;
 }
 
 
@@ -85,6 +87,7 @@ button:disabled {
 .news-source-rail {
   flex: 1;
   min-height: 0;
+  overscroll-behavior-x: contain;
 }
 
 .news-source-rail > li > div {
@@ -121,4 +124,68 @@ header:has(#dropdown-menu) {
 
 .grabbing * {
   cursor: grabbing;
+}
+
+.reader-feed {
+  overflow-anchor: none;
+  overscroll-behavior-y: contain;
+}
+
+.deferred-source-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 500px;
+}
+
+.reader-feed .news-headline {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.reader-feed li > a {
+  padding: 0.625rem 0.875rem;
+  min-height: 2.75rem;
+}
+
+.reader-feed .news-meta {
+  font-size: 0.8125rem;
+}
+
+.column-navigation nav {
+  padding-block: 0;
+}
+
+.column-navigation nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 767px) {
+  .reader-layout:has(.source-switcher) > main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    margin-top: 0;
+  }
+
+  .column-navigation {
+    margin: 0 0 0.25rem 0.5rem;
+  }
+
+  .source-switcher {
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+  }
+
+  .news-source-rail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .reader-layout:has(.news-source-rail) > header,
+  .news-source-rail .source-card-header {
+    padding-block: 0;
+  }
 }

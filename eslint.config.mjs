@@ -23,7 +23,7 @@ export default configs.map(item => !item.rules ? item : ({
   })),
 })).concat({
   // Preserve explicit confirmations before destructive admin actions.
-  files: ["src/routes/admin.tsx"],
+  files: ["src/routes/admin.lazy.tsx"],
   rules: { "no-alert": "off" },
 }, {
   files: ["**/*.ts", "**/*.tsx"],

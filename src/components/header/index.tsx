@@ -67,11 +67,11 @@ export function Header() {
             <polygon points="268,295 240,350 262,350 248,405 282,342 260,342" fill="#FFFFFF" />
           </svg>
           <span className="text-2xl font-brand line-height-none!">
-            <p>News</p>
-            <p className="mt--1">
+            <span className="block">News</span>
+            <span className="block mt--1">
               <span className="color-primary-6">H</span>
               <span>ub</span>
-            </p>
+            </span>
           </span>
         </Link>
       </span>

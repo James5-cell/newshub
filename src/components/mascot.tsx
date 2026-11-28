@@ -188,9 +188,9 @@ export function NewsNowMascot() {
               <img src={signal} alt="" draggable={false} />
             </span>
             <span className="news-mascot-eyes">
-              {mascotConfig.core.eyes.map((eye,index) => {
+              {mascotConfig.core.eyes.map((eye) => {
                 const extent=eye.haloRadius+6.5
-                return <span className="news-mascot-eye" key={index} style={{
+                return <span className="news-mascot-eye" key={`${eye.x}-${eye.y}`} style={{
                   left:`${(eye.x-extent)/mascotConfig.core.width*100}%`,
                   top:`${(eye.y-extent)/mascotConfig.core.height*100}%`,
                   width:`${extent*2/mascotConfig.core.width*100}%`,

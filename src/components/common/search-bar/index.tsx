@@ -3,6 +3,7 @@ import { Command } from "cmdk"
 import type { SourceID } from "@shared/types"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useRouter } from "@tanstack/react-router"
 import pinyin from "@shared/pinyin.json"
 import { CardWrapper } from "~/components/column/card"
 
@@ -57,10 +58,23 @@ const getIconStyle = (id: string, metadata: any) => {
 
 export function SearchBar() {
   const { opened, toggle } = useSearchBar()
+  const { history } = useRouter()
   const { data: catData, isError: directoryError, isLoading: directoryLoading, refetch: reloadDirectory } = useSourceCategories()
 
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const initialQuery = params.get("q")?.trim()
+    if (!initialQuery) return
+    setQuery(initialQuery)
+    setDebouncedQuery(initialQuery)
+    params.delete("q")
+    const search = params.toString()
+    const nextHref = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`
+    history.replace(nextHref, { ...history.location.state, newsSearchOpen: true })
+  }, [history])
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -310,28 +324,19 @@ function NewsItemRow({ item, metadata }: { item: any, metadata: any }) {
   return (
     <Command.Item
       value={articleValue(item)}
-      className="flex justify-between items-center p-2 cursor-pointer rounded-md hover:bg-white/[0.05] aria-selected:bg-white/[0.08]"
+      className="news-result cursor-pointer rounded-md hover:bg-white/[0.05] aria-selected:bg-white/[0.08]"
       onSelect={() => {
         const width = window.innerWidth
         const url = width < 768 ? item.mobileUrl || item.url : item.url
         window.open(url, "_blank", "noopener,noreferrer")
       }}
     >
-      <span className="flex gap-2 items-center min-w-0 flex-1">
-        <span
-          className="w-4 h-4 rounded-md bg-cover flex-shrink-0"
-          style={getIconStyle(item.sourceId, metadata)}
-        />
-        <span className="text-xs text-neutral-400 flex-shrink-0 font-medium select-none">
-          [{item.sourceName}]
-        </span>
-        <span className="truncate text-white/90 text-sm leading-snug">{item.title}</span>
+      <span className="result-title">{item.title}</span>
+      <span className="result-meta">
+        <span className="w-4 h-4 rounded-md bg-cover shrink-0" style={getIconStyle(item.sourceId, metadata)} />
+        <span className="min-w-0 truncate">{item.sourceName}</span>
+        {item.pubDate && <span className="ml-auto shrink-0">{relativeTime}</span>}
       </span>
-      {item.pubDate && (
-        <span className="text-xs text-neutral-500 flex-shrink-0 ml-2 whitespace-nowrap select-none">
-          {relativeTime}
-        </span>
-      )}
     </Command.Item>
   )
 }

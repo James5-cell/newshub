@@ -152,7 +152,7 @@ function SelahGuidePage() {
         <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
           阅读时遇到了什么问题？
         </h1>
-        <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed">
+        <p className="text-base md:text-sm text-neutral-400 max-w-2xl leading-relaxed">
           从遇到的问题出发，找到合适的工具和使用步骤。
         </p>
         <nav aria-label="按阅读问题查找工具" className="flex flex-wrap gap-2 pt-2">
@@ -249,7 +249,7 @@ function SelahGuidePage() {
             {/* Action Steps */}
             <div className="space-y-3 pt-1">
               <div className="text-sm text-neutral-400">使用步骤</div>
-              <ol className="space-y-2 list-decimal pl-5 text-sm text-neutral-300">
+              <ol className="space-y-2 list-decimal pl-5 text-base md:text-sm leading-relaxed text-neutral-300">
                 {sc.steps.map(st => (
                   <li
                     key={st}

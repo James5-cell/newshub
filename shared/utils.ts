@@ -1,10 +1,9 @@
-export function relativeTime(timestamp: string | number) {
+export function relativeTime(timestamp: string | number, now = Date.now()) {
   if (!timestamp) return undefined
   const date = new Date(timestamp)
   if (Number.isNaN(date.getDay())) return undefined
 
-  const now = new Date()
-  const diffInSeconds = (now.getTime() - date.getTime()) / 1000
+  const diffInSeconds = (now - date.getTime()) / 1000
   const diffInMinutes = diffInSeconds / 60
   const diffInHours = diffInMinutes / 60
 

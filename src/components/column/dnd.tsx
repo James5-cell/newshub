@@ -1,5 +1,5 @@
-import type { PropsWithChildren } from "react"
-import type { SourceID} from "@shared/types"
+import { type PropsWithChildren, useLayoutEffect } from "react"
+import type { FixedColumnID, SourceID } from "@shared/types"
 import type { BaseEventPayload, ElementDragType } from "@atlaskit/pragmatic-drag-and-drop/dist/types/internal-types"
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { reorderWithEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge"
@@ -21,11 +21,12 @@ import { useSourceOverrides } from "~/hooks/useSourceOverrides"
 import { useSourceCategories } from "~/hooks/useSourceCategories"
 
 const AnimationDuration = 200
+const lastSource = new Map<FixedColumnID, SourceID>()
 
 export function Dnd() {
   const [items] = useAtom(currentSourcesAtom)
   const setMetadata = useSetAtom(primitiveMetadataAtom)
-  const manualOrderByColumn = useAtomValue(primitiveMetadataAtom).manualOrderByColumn ?? {}
+  const manualOrderByColumn = useAtomValue(primitiveMetadataAtom).manualOrderByColumn
   const currentColumnID = useAtomValue(currentColumnIDAtom)
   const customSourceIds = useCustomSourceIds(currentColumnID)
   const { hiddenSourceIds } = useSourceOverrides()
@@ -35,7 +36,7 @@ export function Dnd() {
   const { data: catData, isError: isCatError } = useSourceCategories()
 
   const allItems = useMemo(() => {
-    const manual = !!manualOrderByColumn[currentColumnID]
+    const manual = !!manualOrderByColumn?.[currentColumnID]
 
     if (catData) {
       if (currentColumnID === "focus") {
@@ -73,13 +74,14 @@ export function Dnd() {
   }, [catData, isCatError, currentColumnID, items, customSourceIds, hiddenSourceIds, manualOrderByColumn])
 
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
-  useEntireQuery(allItems)
+  const { batchReady, waitingForBatch } = useEntireQuery(allItems)
   const compact = useMedia(compactReaderQuery)
   const rail = useRef<HTMLOListElement>(null)
   const setRail = useCallback((node: HTMLOListElement | null) => {
     rail.current = node
-    parent(node)
-  }, [parent])
+    parent(compact ? null : node)
+  }, [compact, parent])
+  const railWidth = useRef(0)
   const [position, setPosition] = useState(0)
   const [announcement, announce] = useState("")
   const index = Math.max(0, Math.min(position, allItems.length - 1))
@@ -98,11 +100,30 @@ export function Dnd() {
     }))
   }, [currentColumnID, setMetadata])
 
-  const goTo = (nextIndex: number) => {
+  const goTo = useCallback((nextIndex: number) => {
     const list = rail.current
     const card = list?.children[nextIndex] as HTMLElement | undefined
     if (list && card) list.scrollLeft = card.offsetLeft - (list.children[0] as HTMLElement).offsetLeft
-  }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!compact || !allItems.length) return
+    const list = rail.current
+    if (!list) return
+    const align = () => {
+      railWidth.current = list.clientWidth
+      const saved = lastSource.get(currentColumnID)
+      const next = saved ? Math.max(0, allItems.indexOf(saved)) : 0
+      goTo(next)
+      setPosition(next)
+    }
+    align()
+    const observer = new ResizeObserver(() => {
+      if (railWidth.current !== list.clientWidth) align()
+    })
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [compact, allItems, currentColumnID, goTo])
 
   const move = (from: number, direction: number) => {
     const to = from + direction
@@ -110,6 +131,7 @@ export function Dnd() {
     const order = [...allItems]
     const [moved] = order.splice(from, 1)
     order.splice(to, 0, moved)
+    if (compact) lastSource.set(currentColumnID, moved)
     saveOrder(order)
     announce(`${nameOf(moved)}已移至第 ${to + 1} 位，共 ${order.length} 个来源`)
     requestAnimationFrame(() => {
@@ -135,7 +157,7 @@ export function Dnd() {
   return (
     <DndWrapper items={allItems} onReorder={saveOrder} isSingleColumn={compact}>
       {compact && allItems.length > 1 && (
-        <nav aria-label="切换新闻来源" className="flex items-center justify-between gap-3 px-3 mb-2">
+        <nav aria-label="切换新闻来源" className="source-switcher flex items-center justify-between gap-3 px-3 mb-2">
           <div className="min-w-0 flex items-baseline gap-2 text-sm" aria-live="polite" aria-atomic="true">
             <span className="truncate font-medium text-neutral-200">{nameOf(activeId)}</span>
             <span className="shrink-0 text-xs text-neutral-400 tabular-nums">{index + 1} / {allItems.length}</span>
@@ -159,14 +181,21 @@ export function Dnd() {
         style={compact ? undefined : { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 350px), 1fr))" }}
         onScroll={compact ? event => {
           const list = event.currentTarget
-          if (list.children.length < 2) return
+          if (list.children.length < 2 || list.clientWidth !== railWidth.current) return
           const stride = (list.children[1] as HTMLElement).offsetLeft - (list.children[0] as HTMLElement).offsetLeft
-          if (stride > 0) setPosition(Math.round(list.scrollLeft / stride))
+          if (stride > 0) {
+            const next = Math.max(0, Math.min(allItems.length - 1, Math.round(list.scrollLeft / stride)))
+            lastSource.set(currentColumnID, allItems[next])
+            setPosition(next)
+          }
         } : undefined}
       >
         {allItems.map((id, i) => (
           <li key={id} className={compact ? "w-full shrink-0 snap-center" : "min-w-0"}>
-            <SortableCardWrapper id={id} order={{ first: i === 0, last: i === allItems.length - 1, move: step => move(i, step) }} />
+            <SortableCardWrapper id={id} readerColumn={compact ? currentColumnID : undefined}
+              waitForBatch={waitingForBatch}
+              deferRender={!compact && i >= 6}
+              prepare={compact && (i === index || (batchReady && Math.abs(i - index) === 1))} order={{ first: i === 0, last: i === allItems.length - 1, move: step => move(i, step) }} />
           </li>
         ))}
       </ol>
@@ -250,7 +279,7 @@ function CardOverlay({ id }: { id: SourceID }) {
   )
 }
 
-function SortableCardWrapper({ id, order }: ItemsProps) {
+function SortableCardWrapper({ id, order, readerColumn, prepare, waitForBatch, deferRender }: ItemsProps) {
   const {
     isDragging,
     setNodeRef,
@@ -270,6 +299,10 @@ function SortableCardWrapper({ id, order }: ItemsProps) {
         ref={setNodeRef}
         id={id}
         order={order}
+        readerColumn={readerColumn}
+        prepare={prepare}
+        waitForBatch={waitForBatch}
+        deferRender={deferRender}
         isDragging={isDragging}
         setHandleRef={setHandleRef}
       />

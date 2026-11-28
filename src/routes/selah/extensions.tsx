@@ -28,7 +28,7 @@ export interface SelahExtensionGroup {
   items: SelahExtensionItem[]
 }
 
-export const EXTENSION_GROUPS: SelahExtensionGroup[] = [
+const EXTENSION_GROUPS: SelahExtensionGroup[] = [
   {
     id: "reading-utilities",
     groupCode: "READING UTILITIES",
@@ -133,8 +133,6 @@ export const EXTENSION_GROUPS: SelahExtensionGroup[] = [
   },
 ]
 
-export const SELAH_EXTENSIONS = EXTENSION_GROUPS.flatMap((g) => g.items)
-
 function SelahExtensionsPage() {
   useTitle("Selah 扩展清单 | NewsHub")
   return (
@@ -144,7 +142,7 @@ function SelahExtensionsPage() {
         <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
           找到适合你的阅读工具
         </h1>
-        <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed">
+        <p className="text-base md:text-sm text-neutral-400 max-w-2xl leading-relaxed">
           这七款 Chrome 扩展可以单独使用，也可以按你的阅读习惯组合。
         </p>
       </section>
@@ -165,7 +163,7 @@ function SelahExtensionsPage() {
               <h2 id={`group-title-${group.id}`} className="text-xl font-bold text-white tracking-tight">
                 {group.title}
               </h2>
-              <p className="text-sm text-neutral-400 leading-relaxed max-w-2xl">
+              <p className="text-base md:text-sm text-neutral-400 leading-relaxed max-w-2xl">
                 {group.description}
               </p>
             </div>
@@ -218,7 +216,7 @@ function SelahExtensionsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                    <div className="md:col-span-2 text-sm text-neutral-400 leading-relaxed">
+                    <div className="md:col-span-2 text-base md:text-sm text-neutral-400 leading-relaxed">
                       {ext.description}
                     </div>
                     <div className="flex flex-wrap md:flex-col gap-2 justify-start md:justify-center">

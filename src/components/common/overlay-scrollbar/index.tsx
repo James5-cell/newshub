@@ -66,6 +66,7 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
   const router = useRouter()
   const location = useLocation()
   const scrollCache = useRef<Map<string, number>>(new Map())
+  const previousSearchOpen = useRef(!!location.state.newsSearchOpen)
   const prevPathnameRef = useRef<string>(location.pathname)
 
   const getHistoryKey = useCallback(() => {
@@ -98,6 +99,9 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
     }
   }, [setGoToTop, getHistoryKey])
 
+  const onScrollRef = useRef(onScroll)
+  onScrollRef.current = onScroll
+
   const [initialize, instance] = useOverlayScrollbars({
     options: {
       scrollbars: {
@@ -105,7 +109,7 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
       },
     },
     events: {
-      scroll: (_, e) => onScroll(e),
+      scroll: (_, e) => onScrollRef.current(e),
     },
     defer: true,
   })
@@ -118,11 +122,11 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
       },
     })
     const el = ref.current
-    if (el) {
-      ref.current?.addEventListener("scroll", onScroll)
-      return () => {
-        el?.removeEventListener("scroll", onScroll)
-      }
+    const handleScroll = (e: Event) => onScrollRef.current(e)
+    el?.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      el?.removeEventListener("scroll", handleScroll)
+      clearTimeout(timer.current)
     }
   })
 
@@ -137,9 +141,15 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
   }, [instance])
 
   // Scroll restoration & route change scroll reset for the global scroll container
+  const historyStateKey = (location.state as any)?.key
   useEffect(() => {
     const el = ref.current
     if (!el) return
+
+    const searchOpen = !!location.state.newsSearchOpen
+    const modalChanged = previousSearchOpen.current !== searchOpen
+    previousSearchOpen.current = searchOpen
+    if (modalChanged && prevPathnameRef.current === location.pathname) return
 
     const currentKey = getHistoryKey()
     const historyAction = (router.history as any)?.action
@@ -161,7 +171,7 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
     }
 
     prevPathnameRef.current = currentPathname
-  }, [location.href, location.pathname, (location.state as any)?.key, router, getHistoryKey])
+  }, [location.href, location.pathname, location.state.newsSearchOpen, historyStateKey, router, getHistoryKey])
 
   return (
     <div ref={ref} {...props} className={$("overflow-auto scrollbar-hidden", className)}>

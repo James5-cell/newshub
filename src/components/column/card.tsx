@@ -1,11 +1,12 @@
-import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
+import type { PropsWithChildren } from "react"
+import type { FixedColumnID, NewsItem, SourceID, SourceResponse } from "@shared/types"
 import { useQuery } from "@tanstack/react-query"
 import { AnimatePresence, motion, useInView } from "framer-motion"
-import { useWindowSize } from "react-use"
-import { forwardRef, useImperativeHandle, useState } from "react"
+import { forwardRef, useImperativeHandle, useLayoutEffect, useState } from "react"
 import { sources } from "@shared/sources"
 import { AUTO_REFRESH_INTERVAL } from "@shared/refresh-policy"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
+import { narrowViewportAtom } from "~/atoms"
 import { refreshMessage, useRefetch } from "~/hooks/useRefetch"
 import { customSourceMapAtom } from "~/hooks/useCustomSources"
 import { useSourceCategories } from "~/hooks/useSourceCategories"
@@ -13,13 +14,17 @@ import { useSourceCategories } from "~/hooks/useSourceCategories"
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
   id: SourceID
   order?: { first: boolean, last: boolean, move: (direction: number) => void }
+  readerColumn?: FixedColumnID
+  prepare?: boolean
+  waitForBatch?: boolean
+  deferRender?: boolean
   isDragging?: boolean
   setHandleRef?: (ref: HTMLElement | null) => void
 }
 
-type NewsCardProps = Pick<ItemsProps, "id" | "setHandleRef" | "order">
+type NewsCardProps = Pick<ItemsProps, "id" | "setHandleRef" | "order" | "readerColumn" | "waitForBatch">
 
-export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, order, isDragging, setHandleRef, style, ...props }, dndRef) => {
+export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, order, isDragging, prepare, waitForBatch, deferRender, readerColumn, setHandleRef, style, ...props }, dndRef) => {
   const ref = useRef<HTMLDivElement>(null)
 
   const inView = useInView(ref, {
@@ -33,7 +38,8 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, order, isD
       ref={ref}
       className={$(
         "flex flex-col h-500px rounded-xl cursor-default",
-        "transition-all duration-200",
+        "transition-colors duration-200",
+        deferRender && "deferred-source-card",
         isDragging && "op-50",
         "bg-white/[0.025] border border-white/[0.06]",
         "hover:border-white/[0.12]",
@@ -44,13 +50,14 @@ export const CardWrapper = forwardRef<HTMLElement, ItemsProps>(({ id, order, isD
       }}
       {...props}
     >
-      {inView && <NewsCard id={id} order={order} setHandleRef={setHandleRef} />}
+      {(prepare || inView) && <NewsCard waitForBatch={waitForBatch} readerColumn={readerColumn} id={id} order={order} setHandleRef={setHandleRef} />}
     </div>
   )
 })
 
-function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
+function NewsCard({ id, setHandleRef, order, readerColumn, waitForBatch }: NewsCardProps) {
   const [ordering, setOrdering] = useState(false)
+  const orderButtonRef = useRef<HTMLButtonElement | null>(null)
   const { refresh, isRefreshing, limitReached, resetAt } = useRefetch()
   const toaster = useToast()
   const refreshTooltip = limitReached
@@ -107,6 +114,7 @@ function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
 
   const { data, isFetching, isError } = useQuery({
     queryKey: ["source", id],
+    enabled: !waitForBatch,
     queryFn: async ({ queryKey }) => {
       const id = queryKey[1] as SourceID
       const cached = cacheSources.get(id)
@@ -137,8 +145,10 @@ function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
       cacheSources.set(id, response)
       return response
     },
-    placeholderData: prev => prev,
-    staleTime: AUTO_REFRESH_INTERVAL,
+    initialData: () => cacheSources.get(id),
+    staleTime: ({ state }) => state.data?.nextRefreshAt
+      ? Math.max(0, state.data.nextRefreshAt - state.dataUpdatedAt)
+      : AUTO_REFRESH_INTERVAL,
     refetchOnMount: true,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
@@ -150,7 +160,7 @@ function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
   return (
     <>
       {/* Card header */}
-      <div className="flex justify-between items-center px-3 py-2.5 border-b border-white/[0.06]">
+      <div className="source-card-header flex justify-between items-center px-3 py-2.5 border-b border-white/[0.06]">
         <div className="flex gap-2 items-center min-w-0">
           <a
             className="w-7 h-7 rounded-full bg-cover bg-center flex-shrink-0 border border-white/10"
@@ -212,12 +222,15 @@ function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
             }} onKeyDown={event => {
               if (event.key === "Escape" && ordering) {
                 setOrdering(false)
-                document.getElementById(`order-${id}`)?.focus()
+                orderButtonRef.current?.focus()
               }
             }}>
               <button
                 id={`order-${id}`}
-                ref={setHandleRef}
+                ref={node => {
+                  orderButtonRef.current = node
+                  setHandleRef(node)
+                }}
                 type="button"
                 aria-label={`调整${name}顺序`}
                 aria-expanded={ordering}
@@ -245,27 +258,38 @@ function NewsCard({ id, setHandleRef, order }: NewsCardProps) {
       </div>
 
       {/* Scrollable news feed */}
-      <OverlayScrollbar
-        className="flex-1 overflow-y-auto"
-        options={{
-          overflow: { x: "hidden" },
-        }}
-        defer
-      >
-        <div className={$("transition-opacity duration-300", isFetching && data?.items?.length && "op-65")}>
+      <NewsFeed column={readerColumn} id={id} ready={!!data?.items.length}>
+        <div>
           {!!data?.items?.length && (
             sourceType === "hottest"
               ? <NewsListHot items={data.items} />
               : <NewsListTimeLine items={data.items} />
           )}
-          {!isFetching && !data?.items?.length && (
+          {!waitForBatch && !isFetching && !data?.items?.length && (
             <p className="px-4 py-8 text-sm text-neutral-400" role="status">
               {isError ? "暂时无法加载内容，可点击上方刷新按钮重试。" : "暂无内容，请稍后再来。"}
             </p>
           )}
         </div>
-      </OverlayScrollbar>
+      </NewsFeed>
     </>
+  )
+}
+
+const feedOffsets = new Map<string, number>()
+
+function NewsFeed({ column, id, ready, children }: PropsWithChildren<{ column?: FixedColumnID, id: SourceID, ready: boolean }>) {
+  const feed = useRef<HTMLDivElement>(null)
+  const key = column && `${column}:${id}`
+  useLayoutEffect(() => {
+    if (key && ready && feed.current) feed.current.scrollTop = feedOffsets.get(key) ?? 0
+  }, [key, ready])
+
+  if (!key) return <OverlayScrollbar className="flex-1 overflow-y-auto" options={{ overflow: { x: "hidden" } }} defer>{children}</OverlayScrollbar>
+  return (
+    <div ref={feed} className="reader-feed min-h-0 flex-1 overflow-y-auto" onScroll={e => {
+      if (ready) feedOffsets.set(key, e.currentTarget.scrollTop)
+    }}>{children}</div>
   )
 }
 
@@ -331,18 +355,18 @@ function NewsUpdatedTime({ date }: { date: string | number }) {
 }
 
 function NewsListHot({ items }: { items: NewsItem[] }) {
-  const { width } = useWindowSize()
+  const isNarrow = useAtomValue(narrowViewportAtom)
   return (
     <ol className="flex flex-col">
       {items?.map((item, i) => (
         <li key={item.id}>
         <a
-          href={width < 768 ? item.mobileUrl || item.url : item.url}
+          href={isNarrow ? item.mobileUrl || item.url : item.url}
           target="_blank"
           rel="noopener noreferrer"
           title={item.extra?.hover}
           className={$(
-            "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer",
+            "flex gap-2 items-stretch relative cursor-pointer [&_*]:cursor-pointer",
             "py-1.5 px-2 transition-colors duration-150",
             "hover:bg-white/[0.04]",
             "border-b border-white/[0.04]",
@@ -354,7 +378,7 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
           </span>
           {!!item.extra?.diff && <DiffNumber diff={item.extra.diff} />}
           <span className="flex-1 min-w-0">
-            <span className="text-sm text-white/85 leading-snug">
+            <span className="news-headline text-sm text-white/85 leading-snug">
               {item.title}
             </span>
             <span className="text-xs text-neutral-400 ml-1.5 align-middle whitespace-nowrap">
@@ -369,7 +393,7 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
 }
 
 function NewsListTimeLine({ items }: { items: NewsItem[] }) {
-  const { width } = useWindowSize()
+  const isNarrow = useAtomValue(narrowViewportAtom)
   return (
     <ol className="flex flex-col">
       {items?.map(item => (
@@ -377,30 +401,19 @@ function NewsListTimeLine({ items }: { items: NewsItem[] }) {
           key={item.id}
           className="border-b border-white/[0.04] last:border-b-0"
         >
-          {/* Meta line: timestamp + extra */}
-          <div className="flex items-center gap-1.5 px-2 pt-1.5">
-            <span className="w-1 h-1 rounded-full bg-gray-600 flex-shrink-0" />
-            <span className="text-xs text-neutral-400">
-              {(item.pubDate || item?.extra?.date) && <NewsUpdatedTime date={(item.pubDate || item?.extra?.date)!} />}
-            </span>
-            <span className="text-xs text-neutral-400">
-              <ExtraInfo item={item} />
-            </span>
-          </div>
-          {/* Title */}
           <a
-            className={$(
-              "block px-2 pb-1.5 pt-0.5 cursor-pointer [&_*]:cursor-pointer",
-              "transition-colors duration-150",
-              "hover:bg-white/[0.04]",
-              "visited:(text-neutral-500)",
-            )}
-            href={width < 768 ? item.mobileUrl || item.url : item.url}
+            className="block px-2 py-1.5 cursor-pointer hover:bg-white/[0.04] visited:text-neutral-500"
+            href={isNarrow ? item.mobileUrl || item.url : item.url}
             title={item.extra?.hover}
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="text-sm text-white/85 leading-snug">{item.title}</span>
+            <span className="news-meta flex items-center gap-1.5 mb-0.5 text-xs text-neutral-400">
+              <span className="w-1 h-1 rounded-full bg-gray-600 shrink-0" />
+              {(item.pubDate || item.extra?.date) && <NewsUpdatedTime date={(item.pubDate || item.extra?.date)!} />}
+              <ExtraInfo item={item} />
+            </span>
+            <span className="news-headline text-sm text-white/85 leading-snug">{item.title}</span>
           </a>
         </li>
       ))}

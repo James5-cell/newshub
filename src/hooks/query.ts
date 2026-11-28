@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import type { SourceID, SourceResponse } from "@shared/types"
 import { sources } from "@shared/sources"
 import { AUTO_REFRESH_INTERVAL, MAX_REFRESH_SOURCES } from "@shared/refresh-policy"
@@ -11,23 +11,17 @@ export function useEntireQuery(items: SourceID[]) {
   const queryClient = useQueryClient()
   const { refresh } = useRefetch()
   const key = [...items].sort().join(",")
-  useQuery({
+  const batch = useQuery({
     queryKey: ["entire", key],
     queryFn: async () => {
-      const responses: SourceResponse[] = []
       for (let offset = 0; offset < items.length; offset += MAX_REFRESH_SOURCES) {
         const result = await myFetch<SourceResponse[]>("/s/entire", {
           method: "POST",
           body: { sources: items.slice(offset, offset + MAX_REFRESH_SOURCES) },
         })
-        responses.push(...result)
+        applySourceResponses(queryClient, result)
       }
-      // Seed caches only; cards make their own first request when they enter view.
-      for (const response of responses) {
-        const previous = cacheSources.get(response.id)
-        if (!previous || Number(response.updatedTime) > Number(previous.updatedTime)) cacheSources.set(response.id, response)
-      }
-      return responses
+      return true
     },
     enabled: items.length > 0,
     staleTime: AUTO_REFRESH_INTERVAL,
@@ -75,4 +69,14 @@ export function useEntireQuery(items: SourceID[]) {
       window.removeEventListener("online", check)
     }
   }, [key, queryClient, refresh])
+
+  // Give a quick shared-cache read first chance, but keep the visible feed usable on a slow connection.
+  const [timedOutKey, setTimedOutKey] = useState<string>()
+  useEffect(() => {
+    if (!key || batch.isFetched) return
+    const timer = setTimeout(() => setTimedOutKey(key), 350)
+    return () => clearTimeout(timer)
+  }, [key, batch.isFetched])
+
+  return { batchReady: batch.isFetched, waitingForBatch: !batch.isFetched && timedOutKey !== key }
 }

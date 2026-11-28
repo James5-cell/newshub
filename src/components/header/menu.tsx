@@ -68,7 +68,7 @@ export function Menu() {
             transition={{ duration: 0.15, ease: "easeOut" }}
           >
             {/* Section: Account */}
-            <div className="p-1.5">
+            <ul className="p-1.5 list-none m-0">
               {enableLogin && (loggedIn
                 ? (
                     <li><button type="button" className="flex items-center gap-2.5 w-full text-left" onClick={() => { logout(); show(false) }}>
@@ -82,37 +82,39 @@ export function Menu() {
                       <span>GitHub 账号登录</span>
                     </button></li>
                   ))}
-              <AdminMenuEntry loggedIn={loggedIn} />
-            </div>
+              <AdminMenuEntry loggedIn={loggedIn} onSelect={() => show(false)} />
+            </ul>
 
             {/* Section: Mobile Navigation Links */}
-            <div className="p-1.5 md:hidden border-t border-white/[0.06] pt-1.5 mt-1 space-y-0.5">
+            <div className="p-1.5 md:hidden border-t border-white/[0.06] pt-1.5 mt-1">
               {isSelah ? (
                 <>
                   <div className="px-2 py-1 text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
                     Selah 阅读工具
                   </div>
-                  <li>
-                    <Link to="/selah" className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
-                      <span className="i-ph:compass-duotone inline-block text-red-400" />
-                      <span>概览</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to={"/selah/extensions" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
-                      <span className="i-ph:squares-four-duotone inline-block text-red-400" />
-                      <span>全部工具</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to={"/selah/guide" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
-                      <span className="i-ph:book-open-duotone inline-block text-red-400" />
-                      <span>使用指南</span>
-                    </Link>
-                  </li>
+                  <ul className="space-y-0.5 list-none m-0 p-0">
+                    <li>
+                      <Link to="/selah" className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                        <span className="i-ph:compass-duotone inline-block text-red-400" />
+                        <span>概览</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={"/selah/extensions" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                        <span className="i-ph:squares-four-duotone inline-block text-red-400" />
+                        <span>全部工具</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={"/selah/guide" as any} className="flex items-center gap-2.5 w-full" onClick={() => show(false)}>
+                        <span className="i-ph:book-open-duotone inline-block text-red-400" />
+                        <span>使用指南</span>
+                      </Link>
+                    </li>
+                  </ul>
                 </>
               ) : (
-                <>
+                <ul className="space-y-0.5 list-none m-0 p-0">
                   <li>
                     <Link
                       to="/c/$column"
@@ -136,7 +138,7 @@ export function Menu() {
                     <span className="i-ph:magnifying-glass-duotone inline-block op-50" />
                     <span>搜索</span>
                   </button></li>
-                </>
+                </ul>
               )}
             </div>
 
@@ -212,7 +214,7 @@ export function Menu() {
   )
 }
 
-function AdminMenuEntry({ loggedIn }: { loggedIn: boolean }) {
+function AdminMenuEntry({ loggedIn, onSelect }: { loggedIn: boolean, onSelect: () => void }) {
   const jwt = safeParseString(safeStorage.getItem("jwt"))
   const { data } = useQuery({
     queryKey: ["admin-check"],
@@ -231,7 +233,7 @@ function AdminMenuEntry({ loggedIn }: { loggedIn: boolean }) {
 
   return (
     <li>
-      <Link to="/admin" className="flex items-center gap-2.5 w-full">
+      <Link to="/admin" className="flex items-center gap-2.5 w-full" onClick={onSelect}>
         <span className="i-ph:gear-six-duotone inline-block op-50" />
         <span>管理來源</span>
       </Link>
